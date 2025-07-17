@@ -5,7 +5,7 @@ console.log('Unnanu background script loaded');
 chrome.action.onClicked.addListener((tab) => {
     console.log('Extension icon clicked on tab:', tab.url);
     
-    // Send message to content script to toggle sidebar
+    // Always toggle sidebar - authentication will be handled within the sidebar
     chrome.tabs.sendMessage(tab.id, { action: 'toggleSidebar' }, (response) => {
         if (chrome.runtime.lastError) {
             console.log('Content script not ready yet');
@@ -13,4 +13,25 @@ chrome.action.onClicked.addListener((tab) => {
             console.log('Toggle message sent successfully');
         }
     });
+});
+
+// Listen for messages from content scripts and popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('Background received message:', request);
+    
+    if (request.action === "getCurrentTabUrl") {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            sendResponse({ currentUrl: tabs[0].url });
+        });
+        return true;
+    }
+    
+    // Handle other background script functionality from uploaded extension
+    if (request.action === "scrapingStarted") {
+        // Handle scraping started
+    }
+    
+    if (request.action === "scrapingStopped") {
+        // Handle scraping stopped
+    }
 });
