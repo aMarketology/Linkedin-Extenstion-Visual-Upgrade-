@@ -1,51 +1,63 @@
-alert("Extension loaded!");
-
 console.log("Unnanu LinkedIn Extension loaded!");
 
-// Create floating Unnanu icon
-const icon = document.createElement('div');
-icon.id = 'unnanu-icon';
-icon.innerHTML = 'U';
-icon.style.cssText = `
-    position: fixed;
-    top: 50%;
-    right: 20px;
-    width: 60px;
-    height: 60px;
-    background: #0073b1;
-    color: white;
-    border-radius: 50%;
-    cursor: pointer;
-    z-index: 99999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 20px;
-    transform: translateY(-50%);
-    box-shadow: 0 4px 12px rgba(0, 115, 177, 0.3);
-    transition: all 0.3s ease;
-`;
+// Check if we're on a LinkedIn page
+function isLinkedInPage() {
+    return window.location.href.includes('linkedin.com');
+}
 
-// Add hover effect
-icon.addEventListener('mouseenter', function() {
-    this.style.transform = 'translateY(-50%) scale(1.1)';
-    this.style.boxShadow = '0 6px 20px rgba(0, 115, 177, 0.4)';
-});
+// Create floating Unnanu icon only on LinkedIn pages
+let icon = null;
+if (isLinkedInPage()) {
+    icon = document.createElement('div');
+    icon.id = 'unnanu-icon';
+    icon.innerHTML = `<img src="${chrome.runtime.getURL('images/unnanu-white-logo.avif')}" alt="Unnanu" style="width: 40px; height: 40px; object-fit: contain;">`;
+    icon.style.cssText = `
+        position: fixed;
+        top: 50%;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        background: white;
+        color: white;
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 20px;
+        transform: translateY(-50%);
+        box-shadow: 0 4px 12px rgba(0, 115, 177, 0.3);
+        border: 3px solid #0073b1;
+        transition: all 0.3s ease;
+    `;
 
-icon.addEventListener('mouseleave', function() {
-    this.style.transform = 'translateY(-50%) scale(1)';
-    this.style.boxShadow = '0 4px 12px rgba(0, 115, 177, 0.3)';
-});
+    // Add hover effect
+    icon.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-50%) scale(1.1)';
+        this.style.boxShadow = '0 6px 20px rgba(0, 115, 177, 0.4)';
+        this.style.borderColor = '#005885';
+    });
+
+    icon.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(-50%) scale(1)';
+        this.style.boxShadow = '0 4px 12px rgba(0, 115, 177, 0.3)';
+        this.style.borderColor = '#0073b1';
+    });
+}
 
 // Track sidebar state
 let sidebarOpen = false;
+let isAuthenticated = false;
 
-// Add click functionality to toggle sidebar
-icon.addEventListener('click', function() {
-    console.log("Unnanu icon clicked!");
-    toggleSidebar();
-});
+// Add click functionality to toggle sidebar (only if icon exists)
+if (icon) {
+    icon.addEventListener('click', function() {
+        console.log("Unnanu icon clicked!");
+        toggleSidebar();
+    });
+}
 
 function toggleSidebar() {
     if (sidebarOpen) {
@@ -271,6 +283,89 @@ function extractLinkedInProfile() {
             console.log('Education section not found');
         }
 
+        // Extract Certificates/Certifications with LinkedIn's new structure
+        let certifications = [];
+        
+        // Find the certifications section
+        const certificationsSection = document.querySelector('#licenses_and_certifications')?.parentElement ||
+                                     document.querySelector('#certifications')?.parentElement ||
+                                     document.querySelector('[data-section="certifications"]');
+        
+        if (certificationsSection) {
+            console.log('Found certifications section');
+            
+            // Look for certification items
+            const certificationItems = certificationsSection.querySelectorAll('li.artdeco-list__item');
+            console.log('Found', certificationItems.length, 'certification items');
+            
+            for (let i = 0; i < Math.min(certificationItems.length, 10); i++) {
+                const item = certificationItems[i];
+                
+                // Extract certification name
+                const nameElement = item.querySelector('.display-flex.align-items-center.mr1.hoverable-link-text.t-bold span[aria-hidden="true"]') ||
+                                  item.querySelector('.t-16.t-bold span[aria-hidden="true"]');
+                const name = nameElement ? nameElement.textContent.trim() : '';
+                
+                // Extract issuing organization
+                const orgElement = item.querySelector('.t-14.t-normal span[aria-hidden="true"]');
+                const organization = orgElement ? orgElement.textContent.trim().split('·')[0].trim() : '';
+                
+                // Extract issue date and expiry
+                const dateElement = item.querySelector('.t-14.t-normal.t-black--light .pvs-entity__caption-wrapper span[aria-hidden="true"]');
+                const dateInfo = dateElement ? dateElement.textContent.trim() : '';
+                
+                if (name || organization) {
+                    certifications.push({ name, organization, dateInfo });
+                    console.log('Added certification:', { name, organization, dateInfo });
+                }
+            }
+        } else {
+            console.log('Certifications section not found');
+        }
+
+        // Extract Skills
+        let skills = [];
+        const skillsSection = document.querySelector('#skills')?.parentElement;
+        
+        if (skillsSection) {
+            console.log('Found skills section');
+            const skillItems = skillsSection.querySelectorAll('span[aria-hidden="true"]');
+            
+            for (const skillItem of skillItems) {
+                const skillText = skillItem.textContent.trim();
+                if (skillText && skillText.length > 2 && skillText.length < 50 && 
+                    !skillText.includes('Show') && !skillText.includes('endorsement') && 
+                    !skillText.includes('Add skill')) {
+                    skills.push(skillText);
+                    if (skills.length >= 20) break; // Limit to top 20 skills
+                }
+            }
+            console.log('Found skills:', skills);
+        }
+
+        // Extract Languages
+        let languages = [];
+        const languagesSection = document.querySelector('#languages')?.parentElement;
+        
+        if (languagesSection) {
+            console.log('Found languages section');
+            const languageItems = languagesSection.querySelectorAll('li.artdeco-list__item');
+            
+            for (let i = 0; i < Math.min(languageItems.length, 10); i++) {
+                const item = languageItems[i];
+                const langElement = item.querySelector('.display-flex.align-items-center.mr1.hoverable-link-text.t-bold span[aria-hidden="true"]');
+                const proficiencyElement = item.querySelector('.t-14.t-normal span[aria-hidden="true"]');
+                
+                const language = langElement ? langElement.textContent.trim() : '';
+                const proficiency = proficiencyElement ? proficiencyElement.textContent.trim() : '';
+                
+                if (language) {
+                    languages.push({ language, proficiency });
+                    console.log('Added language:', { language, proficiency });
+                }
+            }
+        }
+
         const result = {
             isLinkedInProfile: true,
             fullName: fullName,
@@ -281,6 +376,9 @@ function extractLinkedInProfile() {
             followers: followers,
             experience: experience,
             education: education,
+            certifications: certifications,
+            skills: skills,
+            languages: languages,
             url: window.location.href,
             timestamp: new Date().toISOString()
         };
@@ -306,6 +404,32 @@ function extractLinkedInProfile() {
     }
 }
 
+// Helper function to extract email from profile if visible
+function extractEmailFromProfile() {
+    try {
+        // Some LinkedIn profiles may show email in contact info section
+        const emailSelectors = [
+            'a[href^="mailto:"]',
+            '.pv-contact-info-section a[href^="mailto:"]',
+            '.ci-email a[href^="mailto:"]'
+        ];
+        
+        for (const selector of emailSelectors) {
+            const emailElement = document.querySelector(selector);
+            if (emailElement) {
+                const email = emailElement.href.replace('mailto:', '');
+                console.log('Found email in profile:', email);
+                return email;
+            }
+        }
+        
+        return '';
+    } catch (error) {
+        console.error('Error extracting email from profile:', error);
+        return '';
+    }
+}
+
 function openSidebar() {
     console.log("Opening sidebar...");
     
@@ -313,259 +437,274 @@ function openSidebar() {
     const existing = document.getElementById('unnanu-sidebar');
     if (existing) existing.remove();
     
+    // Hide the floating icon when sidebar opens
+    if (icon) {
+        icon.style.display = 'none';
+    }
+    
     // Extract profile data
     const profileData = extractLinkedInProfile();
     
-    // Create sidebar
-    const sidebar = document.createElement('div');
-    sidebar.id = 'unnanu-sidebar';
-    sidebar.style.cssText = `
+    // Create iframe for sidebar
+    const iframe = document.createElement('iframe');
+    iframe.id = 'unnanu-sidebar-iframe';
+    iframe.src = chrome.runtime.getURL('ui/sidebar.html');
+    iframe.style.cssText = `
         position: fixed;
         top: 0;
         right: 0;
         width: 400px;
         height: 100vh;
-        background: white;
+        border: none;
         border-left: 2px solid #0073b1;
         box-shadow: -5px 0 15px rgba(0,0,0,0.2);
         z-index: 99998;
-        padding: 20px;
-        font-family: Arial, sans-serif;
-        overflow-y: auto;
+        background: white;
     `;
     
-    // Generate sidebar content based on whether we're on LinkedIn
-    let sidebarContent;
+    // Wait for iframe to load, then check authentication status
+    iframe.onload = function() {
+        console.log('Sidebar iframe loaded');
+        
+        // Don't send profile data immediately - let sidebar handle authentication first
+        // The sidebar will request profile data after authentication is confirmed
+    };
     
-    if (profileData.isLinkedInProfile && profileData.fullName) {
-        sidebarContent = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-                <h2 style="color: #0073b1; margin: 0; font-size: 20px;">LinkedIn Profile</h2>
-                <button id="close-sidebar" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
-            </div>
-            
-            <div style="text-align: center; margin-bottom: 20px;">
-                <img src="${profileData.profileImage || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxjaXJjbGUgY3g9IjUwIiBjeT0iMzciIHI9IjE1IiBmaWxsPSIjOUM5Q0EyIi8+CjxwYXRoIGQ9Ik0yMCA3MEM0MCA2MCA2MCA2MCA4MCA3MEw4MCA5MEwyMCA5MEwyMCA3MFoiIGZpbGw9IiM5QzlDQTIiLz4KPC9zdmc+'}" 
-                 alt="Profile Picture" 
-                 style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #0073b1; object-fit: cover;"
-                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxjaXJjbGUgY3g9IjUwIiBjeT0iMzciIHI9IjE1IiBmaWxsPSIjOUM5Q0EyIi8+CjxwYXRoIGQ9Ik0yMCA3MEM0MCA2MCA2MCA2MCA4MCA3MEw4MCA5MEwyMCA5MEwyMCA3MFoiIGZpbGw9IiM5QzlDQTIiLz4KPC9zdmc+'">
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h3 style="color: #0073b1; margin: 0 0 15px 0; font-size: 18px; text-align: center;">${profileData.fullName}</h3>
-                
-                ${profileData.headline ? `
-                    <div style="margin-bottom: 10px;">
-                        <strong style="color: #666; font-size: 12px;">TITLE:</strong>
-                        <p style="margin: 5px 0; color: #333; font-size: 14px; line-height: 1.4;">${profileData.headline}</p>
-                    </div>
-                ` : ''}
-                
-                ${profileData.location ? `
-                    <div style="margin-bottom: 10px;">
-                        <strong style="color: #666; font-size: 12px;">LOCATION:</strong>
-                        <p style="margin: 5px 0; color: #333; font-size: 14px;">📍 ${profileData.location}</p>
-                    </div>
-                ` : ''}
-                
-                <div style="display: flex; justify-content: space-between; margin-top: 15px;">
-                    ${profileData.connections ? `
-                        <div style="text-align: center; flex: 1;">
-                            <strong style="color: #666; font-size: 11px;">CONNECTIONS</strong>
-                            <p style="margin: 5px 0; color: #0073b1; font-size: 13px; font-weight: bold;">🔗 ${profileData.connections}</p>
-                        </div>
-                    ` : ''}
-                    
-                    ${profileData.followers ? `
-                        <div style="text-align: center; flex: 1;">
-                            <strong style="color: #666; font-size: 11px;">FOLLOWERS</strong>
-                            <p style="margin: 5px 0; color: #0073b1; font-size: 13px; font-weight: bold;">👥 ${profileData.followers}</p>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-            
-            <!-- WORK EXPERIENCE SECTION -->
-            ${profileData.experience && profileData.experience.length > 0 ? `
-                <div style="background: #fff; border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #0073b1; margin: 0 0 15px 0; font-size: 16px; display: flex; align-items: center;">
-                        💼 WORK EXPERIENCE (${profileData.experience.length})
-                    </h4>
-                    ${profileData.experience.slice(0, 3).map((exp, index) => `
-                        <div style="margin-bottom: 15px; padding-bottom: 15px; ${index < 2 ? 'border-bottom: 1px solid #f0f0f0;' : ''}">
-                            ${exp.title ? `<p style="margin: 0 0 5px 0; color: #333; font-size: 14px; font-weight: bold;">${exp.title}</p>` : ''}
-                            ${exp.company ? `<p style="margin: 0 0 5px 0; color: #666; font-size: 13px;">${exp.company}</p>` : ''}
-                            ${exp.duration ? `<p style="margin: 0; color: #999; font-size: 12px;">${exp.duration}</p>` : ''}
-                        </div>
-                    `).join('')}
-                    ${profileData.experience.length > 3 ? `
-                        <p style="color: #0073b1; font-size: 12px; font-style: italic; text-align: center; margin: 10px 0 0 0;">
-                            +${profileData.experience.length - 3} more position${profileData.experience.length - 3 > 1 ? 's' : ''}
-                        </p>
-                    ` : ''}
-                </div>
-            ` : `
-                <div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <h4 style="color: #666; margin: 0 0 10px 0; font-size: 14px;">💼 WORK EXPERIENCE</h4>
-                    <p style="color: #999; font-size: 12px; margin: 0; font-style: italic;">No work experience found on this profile</p>
-                </div>
-            `}
-            
-            <!-- EDUCATION SECTION -->
-            ${profileData.education && profileData.education.length > 0 ? `
-                <div style="background: #fff; border: 1px solid #e0e0e0; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h4 style="color: #0073b1; margin: 0 0 15px 0; font-size: 16px; display: flex; align-items: center;">
-                        🎓 EDUCATION (${profileData.education.length})
-                    </h4>
-                    ${profileData.education.slice(0, 3).map((edu, index) => `
-                        <div style="margin-bottom: 15px; padding-bottom: 15px; ${index < 2 ? 'border-bottom: 1px solid #f0f0f0;' : ''}">
-                            ${edu.school ? `<p style="margin: 0 0 5px 0; color: #333; font-size: 14px; font-weight: bold;">${edu.school}</p>` : ''}
-                            ${edu.degree ? `<p style="margin: 0 0 5px 0; color: #666; font-size: 13px;">${edu.degree}</p>` : ''}
-                            ${edu.years ? `<p style="margin: 0; color: #999; font-size: 12px;">${edu.years}</p>` : ''}
-                        </div>
-                    `).join('')}
-                    ${profileData.education.length > 3 ? `
-                        <p style="color: #0073b1; font-size: 12px; font-style: italic; text-align: center; margin: 10px 0 0 0;">
-                            +${profileData.education.length - 3} more school${profileData.education.length - 3 > 1 ? 's' : ''}
-                        </p>
-                    ` : ''}
-                </div>
-            ` : `
-                <div style="background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h4 style="color: #666; margin: 0 0 10px 0; font-size: 14px;">🎓 EDUCATION</h4>
-                    <p style="color: #999; font-size: 12px; margin: 0; font-style: italic;">No education information found on this profile</p>
-                </div>
-            `}
-            
-            <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h4 style="color: #0073b1; margin: 0 0 10px 0; font-size: 14px;">✅ EXTRACTION SUMMARY</h4>
-                <p style="margin: 0; color: #666; font-size: 12px;">
-                    Found: ${profileData.fullName ? '✓ Name' : '✗ Name'} 
-                    ${profileData.headline ? ', ✓ Title' : ', ✗ Title'}
-                    ${profileData.location ? ', ✓ Location' : ', ✗ Location'}
-                    ${profileData.connections ? ', ✓ Connections' : ', ✗ Connections'}
-                    ${profileData.followers ? ', ✓ Followers' : ', ✗ Followers'}
-                    ${profileData.experience?.length > 0 ? `, ✓ Experience (${profileData.experience.length})` : ', ✗ Experience'}
-                    ${profileData.education?.length > 0 ? `, ✓ Education (${profileData.education.length})` : ', ✗ Education'}
-                </p>
-            </div>
-            
-            <button id="extract-btn" style="
-                background: #0073b1; 
-                color: white; 
-                border: none; 
-                padding: 12px 20px; 
-                border-radius: 5px; 
-                cursor: pointer; 
-                font-size: 14px;
-                width: 100%;
-                margin-bottom: 10px;
-                font-weight: bold;
-            ">
-                📋 Extract Complete Profile Data
-            </button>
-            
-            <button id="close-btn" style="
-                background: #666; 
-                color: white; 
-                border: none; 
-                padding: 12px 20px; 
-                border-radius: 5px; 
-                cursor: pointer; 
-                font-size: 14px;
-                width: 100%;
-            ">
-                Close Sidebar
-            </button>
-        `;
-    } else {
-        sidebarContent = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">
-                <h2 style="color: #0073b1; margin: 0; font-size: 20px;">Unnanu Extension</h2>
-                <button id="close-sidebar" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
-            </div>
-            
-            <div style="text-align: center; margin-bottom: 20px;">
-                <div style="width: 80px; height: 80px; background: #0073b1; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">
-                    U
-                </div>
-            </div>
-            
-            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;">
-                <h4 style="color: #856404; margin: 0 0 10px 0; font-size: 14px;">ℹ️ NOT A LINKEDIN PROFILE</h4>
-                <p style="margin: 0; color: #856404; font-size: 12px;">Navigate to a LinkedIn profile page (linkedin.com/in/username) to extract profile data.</p>
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h4 style="color: #0073b1; margin: 0 0 10px 0; font-size: 14px;">Current Page:</h4>
-                <p style="margin: 0; color: #666; font-size: 12px; word-break: break-all;">${window.location.href}</p>
-            </div>
-            
-            <button id="close-btn" style="
-                background: #666; 
-                color: white; 
-                border: none; 
-                padding: 12px 20px; 
-                border-radius: 5px; 
-                cursor: pointer; 
-                font-size: 14px;
-                width: 100%;
-            ">
-                Close Sidebar
-            </button>
-        `;
-    }
-    
-    sidebar.innerHTML = sidebarContent;
-    
-    // Add event listeners for buttons
-    sidebar.querySelector('#close-sidebar')?.addEventListener('click', closeSidebar);
-    sidebar.querySelector('#close-btn').addEventListener('click', closeSidebar);
-    
-    // Enhanced extract button functionality
-    const extractBtn = sidebar.querySelector('#extract-btn');
-    if (extractBtn) {
-        extractBtn.addEventListener('click', function() {
-            console.log('Extracting complete profile data:', profileData);
-            
-            let experienceText = profileData.experience && profileData.experience.length > 0 
-                ? profileData.experience.map((exp, index) => `${index + 1}. ${exp.title} at ${exp.company} (${exp.duration})`).join('\n') 
-                : 'No work experience found';
-                
-            let educationText = profileData.education && profileData.education.length > 0 
-                ? profileData.education.map((edu, index) => `${index + 1}. ${edu.degree} at ${edu.school} (${edu.years})`).join('\n') 
-                : 'No education data found';
-            
-            alert(`COMPLETE PROFILE EXTRACTED!\n\n` +
-                  `👤 Name: ${profileData.fullName || 'Not found'}\n` +
-                  `💼 Title: ${profileData.headline || 'Not found'}\n` +
-                  `📍 Location: ${profileData.location || 'Not found'}\n` +
-                  `🔗 Connections: ${profileData.connections || 'Not found'}\n` +
-                  `👥 Followers: ${profileData.followers || 'Not found'}\n\n` +
-                  `WORK EXPERIENCE:\n${experienceText}\n\n` +
-                  `EDUCATION:\n${educationText}\n\n` +
-                  `🔗 Profile URL: ${profileData.url}`);
-        });
-    }
-    
-    document.body.appendChild(sidebar);
+    document.body.appendChild(iframe);
     sidebarOpen = true;
-    console.log("Sidebar opened with profile data!");
+    console.log("Sidebar opened!");
 }
 
 function closeSidebar() {
     console.log("Closing sidebar...");
-    const sidebar = document.getElementById('unnanu-sidebar');
-    if (sidebar) {
-        sidebar.remove();
+    const iframe = document.getElementById('unnanu-sidebar-iframe');
+    if (iframe) {
+        iframe.remove();
         sidebarOpen = false;
+        
+        // Always show the floating icon again when sidebar closes
+        if (icon) {
+            icon.style.display = 'flex';
+        }
+        
         console.log("Sidebar closed!");
     }
 }
 
-// Add the icon to the page
-document.body.appendChild(icon);
-console.log("Unnanu floating icon added!");
+// Listen for messages from sidebar iframe
+window.addEventListener('message', function(event) {
+    if (event.source === document.getElementById('unnanu-sidebar-iframe')?.contentWindow) {
+        console.log('Content script received message from sidebar:', event.data);
+        
+        switch(event.data.action) {
+            case 'closeSidebar':
+                closeSidebar();
+                break;
+            case 'extractProfile':
+                handleProfileExtraction(event.data.userData, event.data.autoExtract || false);
+                break;
+            case 'requestProfileData':
+                // Only send profile data when requested by authenticated sidebar
+                sendProfileDataToSidebar();
+                break;
+            case 'authStatus':
+                // Handle authentication status updates from sidebar
+                handleAuthStatusUpdate(event.data);
+                break;
+        }
+    }
+});
+
+// Handle authentication status updates
+function handleAuthStatusUpdate(data) {
+    console.log('Authentication status updated:', data);
+    isAuthenticated = data.isAuthenticated;
+    
+    // Icon visibility is controlled by sidebar state, not auth status
+    // Icon is always shown when sidebar is closed, regardless of auth status
+    if (icon && !sidebarOpen) {
+        icon.style.display = 'flex';
+    }
+}
+
+function sendProfileDataToSidebar() {
+    console.log('Sending profile data to sidebar');
+    const iframe = document.getElementById('unnanu-sidebar-iframe');
+    if (!iframe) return;
+    
+    const profileData = extractLinkedInProfile();
+    
+    iframe.contentWindow.postMessage({
+        action: 'updateProfile',
+        profileData: {
+            firstName: profileData.fullName ? profileData.fullName.split(' ')[0] : '',
+            lastName: profileData.fullName ? profileData.fullName.split(' ').slice(1).join(' ') : '',
+            headline: profileData.headline || '',
+            location: profileData.location || '',
+            profileImage: profileData.profileImage || '',
+            connections: profileData.connections || '',
+            followers: profileData.followers || '',
+            experience: profileData.experience || [],
+            education: profileData.education || [],
+            certifications: profileData.certifications || [],
+            skills: profileData.skills || [],
+            languages: profileData.languages || [],
+            url: profileData.url,
+            timestamp: profileData.timestamp,
+            // Add extracted email from profile if available (some profiles show this)
+            profileEmail: extractEmailFromProfile() || ''
+        }
+    }, '*');
+}
+
+function handleProfileExtraction(userData, isAutoExtract = false) {
+    console.log('Handling profile extraction with user data:', userData, 'Auto:', isAutoExtract);
+    
+    const profileData = extractLinkedInProfile();
+    const iframe = document.getElementById('unnanu-sidebar-iframe');
+    
+    if (!iframe) return;
+    
+    // For auto-extraction by authenticated users, skip API call and just show data
+    if (isAutoExtract) {
+        console.log('Auto-extracting for authenticated user - showing data directly');
+        
+        // Send success message immediately with the profile data
+        iframe.contentWindow.postMessage({
+            action: 'extractionSuccess',
+            data: profileData,
+            autoExtract: true
+        }, '*');
+        
+        return;
+    }
+    
+    // For manual extraction, proceed with API call
+    // Send extraction started message
+    iframe.contentWindow.postMessage({
+        action: 'extractionStarted'
+    }, '*');
+    
+    // Send data to Unnanu API
+    sendProfileDataToAPI(profileData, userData)
+        .then(response => {
+            console.log('Profile sent successfully:', response);
+            
+            // Send success message
+            iframe.contentWindow.postMessage({
+                action: 'extractionSuccess',
+                data: response,
+                autoExtract: false
+            }, '*');
+            
+            // Add profile to sent list
+            addProfileToSentList(profileData.url);
+        })
+        .catch(error => {
+            console.error('Failed to send profile:', error);
+            
+            // Send error message
+            iframe.contentWindow.postMessage({
+                action: 'extractionError',
+                message: 'Failed to extract profile. Please try again.'
+            }, '*');
+        });
+}
+
+// Add the icon to the page (only if on LinkedIn and icon was created)
+if (icon) {
+    document.body.appendChild(icon);
+    console.log("Unnanu floating icon added!");
+    
+    // Check authentication status on page load to determine icon visibility
+    checkInitialAuthStatus();
+} else {
+    console.log("Not on LinkedIn page, icon not created");
+}
+
+// Check initial authentication status to determine icon visibility
+function checkInitialAuthStatus() {
+    getUnnanuData(function(userData) {
+        isAuthenticated = !!(userData && userData.token);
+        console.log('Initial auth status:', isAuthenticated);
+        
+        // Always show icon by default - it will be hidden only when sidebar is open
+        if (icon) {
+            icon.style.display = 'flex';
+            console.log('Icon should be visible');
+        }
+    });
+}
+
+// Authentication and API functions
+function getUnnanuData(callback) {
+    chrome.storage.local.get(['unnanu_token', 'unnanu_id', 'unnanu_expiry', 'unnanu_type'], function(result) {
+        const currentTime = new Date().getTime();
+        if (result.unnanu_expiry && currentTime > result.unnanu_expiry) {
+            chrome.storage.local.remove(['unnanu_token', 'unnanu_id', 'unnanu_expiry', 'unnanu_type']);
+            callback(null);
+        } else if (result.unnanu_token && result.unnanu_id) {
+            callback({
+                token: result.unnanu_token,
+                id: result.unnanu_id,
+                type: result.unnanu_type
+            });
+        } else {
+            callback(null);
+        }
+    });
+}
+
+function addProfileToSentList(profileId) {
+    chrome.storage.local.get(['sentProfileIds'], function(result) {
+        const sentProfileIds = result.sentProfileIds || [];
+        if (!sentProfileIds.includes(profileId)) {
+            sentProfileIds.push(profileId);
+            chrome.storage.local.set({ 'sentProfileIds': sentProfileIds });
+        }
+    });
+}
+
+async function sendProfileDataToAPI(profileData, userData) {
+    const apiEndpoint = 'https://plugin.unnanu.com/api/v1/profiles/extract';
+    
+    // Prepare data in the format expected by Unnanu API
+    const dataToSend = {
+        firstName: profileData.fullName ? profileData.fullName.split(' ')[0] : '',
+        lastName: profileData.fullName ? profileData.fullName.split(' ').slice(1).join(' ') : '',
+        headline: profileData.headline || '',
+        location: profileData.location || '',
+        profileImage: profileData.profileImage || '',
+        connections: profileData.connections || '',
+        followers: profileData.followers || '',
+        experience: profileData.experience || [],
+        education: profileData.education || [],
+        url: profileData.url,
+        extractedAt: profileData.timestamp,
+        userId: userData.id
+    };
+    
+    try {
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${userData.token}`
+            },
+            body: JSON.stringify(dataToSend)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('API request failed:', error);
+        throw error;
+    }
+}
 
 // Listen for messages from background script (extension icon clicks)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
