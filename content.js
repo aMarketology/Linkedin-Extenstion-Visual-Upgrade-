@@ -22,6 +22,8 @@ let sidebarOpen = false;
 // ============================================================================
 
 (async function init() {
+    console.log('🚀 Unnanu Extension initializing on:', window.location.hostname);
+    
     // Get user role
     userRole = await getUserRole();
     
@@ -35,17 +37,50 @@ let sidebarOpen = false;
     
     // Check if we're on LinkedIn
     const isLinkedIn = window.location.hostname.includes('linkedin.com');
+    console.log(`📍 Website check - LinkedIn: ${isLinkedIn}`);
     
     // Initialize features based on role and website
     if (userRole === 'recruiter' && isLinkedIn) {
         // Recruiter mode only works on LinkedIn
+        console.log('🎯 Activating RECRUITER mode for LinkedIn');
         initializeRecruiterMode();
     } else if (userRole === 'talent') {
         // Talent mode works on all job sites
+        console.log('💼 Activating TALENT mode for job applications');
         initializeTalentMode();
     } else if (userRole === 'recruiter' && !isLinkedIn) {
         console.log('ℹ️ Recruiter mode only works on LinkedIn. Switch to Talent mode for other job sites.');
     }
+    
+    // Listen for messages from iframe (e.g., close sidebar, request page data)
+    window.addEventListener('message', (event) => {
+        if (event.data.action === 'closeTalentSidebar') {
+            closeTalentSidebar();
+        } else if (event.data.action === 'requestPageData') {
+            // Scrape and send page data to iframe
+            const pageData = scrapeJobPageData();
+            const iframe = document.querySelector('#unnanu-talent-sidebar iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    action: 'pageDataResponse',
+                    data: pageData
+                }, '*');
+            }
+        } else if (event.data.action === 'fillField') {
+            // Fill a specific field on the page
+            fillFieldOnPage(event.data.fieldIdentifier, event.data.value);
+        } else if (event.data.action === 'getFormFields') {
+            // Scan and return all form fields
+            const fields = scanFormFields();
+            const iframe = document.querySelector('#unnanu-talent-sidebar iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    action: 'formFieldsResponse',
+                    fields: fields
+                }, '*');
+            }
+        }
+    });
 })();
 
 // ============================================================================
@@ -139,8 +174,84 @@ function initializeRecruiterMode() {
     
     // Only show recruiter features on profile pages
     if (window.location.href.includes('linkedin.com/in/')) {
+        // Auto-extract and cache profile when visiting
+        autoExtractAndCache();
+        
+        // Create floating icon for manual actions
         createFloatingIcon();
     }
+}
+
+// Auto-extract profile and cache it
+async function autoExtractAndCache() {
+    try {
+        console.log('🔄 Auto-extracting profile...');
+        
+        // Check if extractLinkedInProfile function exists
+        if (typeof extractLinkedInProfile !== 'function') {
+            console.log('⚠️ Profile extraction not available on this page');
+            return;
+        }
+        
+        // Wait for page to fully load
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Extract profile data
+        const profileData = extractLinkedInProfile();
+        
+        if (profileData && profileData.fullName) {
+            console.log('✅ Profile extracted:', profileData.fullName);
+            
+            // Cache it using DataSend with error handling
+            if (typeof DataSend !== 'undefined') {
+                try {
+                    await DataSend.saveProfileToCache(profileData);
+                    console.log('💾 Profile cached successfully!');
+                    
+                    // Show brief success notification
+                    showBriefNotification('✅ Profile cached: ' + profileData.fullName);
+                } catch (cacheError) {
+                    // Handle extension context invalidation gracefully
+                    if (cacheError.message && cacheError.message.includes('Extension context invalidated')) {
+                        console.log('⚠️ Extension was reloaded. Please refresh the page.');
+                    } else {
+                        console.error('❌ Cache error:', cacheError);
+                    }
+                }
+            }
+        } else {
+            console.log('⚠️ Could not extract profile data');
+        }
+    } catch (error) {
+        console.error('❌ Auto-extract error:', error);
+    }
+}
+
+// Show brief notification
+function showBriefNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #28a745;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 999999;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        animation: slideInRight 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // ============================================================================
@@ -148,10 +259,11 @@ function initializeRecruiterMode() {
 // ============================================================================
 
 function initializeTalentMode() {
-    console.log('🎯 Initializing Talent Mode...');
+    console.log('🎯 Initializing Talent Mode on:', window.location.hostname);
     
     // Create floating icon for talent mode (works on any page)
     createJobHelperIcon();
+    console.log('✅ Talent helper icon created!');
 }
 
 let talentSidebarOpen = false;
@@ -220,6 +332,9 @@ function openTalentSidebar() {
     if (existingSidebar) {
         existingSidebar.remove();
     }
+    
+    // Scrape page data BEFORE opening sidebar (content script has access)
+    const pageData = scrapeJobPageData();
     
     // Create iframe container
     const sidebar = document.createElement('div');
@@ -613,11 +728,17 @@ async function openSidebar() {
                 data: profileData
             });
             
-            if (response.success) {
+            if (response && response.success) {
                 console.log(`✅ Profile cached! Total profiles in session: ${response.profileCount}`);
             }
         } catch (error) {
-            console.error('⚠️ Failed to cache profile:', error);
+            // Handle extension context invalidation gracefully
+            if (error.message && error.message.includes('Extension context invalidated')) {
+                console.warn('⚠️ Extension was reloaded. Please refresh the page to cache profiles.');
+                // Still show sidebar, just skip caching
+            } else {
+                console.error('⚠️ Failed to cache profile:', error);
+            }
         }
     }
     
@@ -745,8 +866,11 @@ function generateProfileSidebar(data) {
             
             <!-- Action Buttons -->
             <button id="copy-btn" style="background: #0073b1; color: white; border: none; padding: 14px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; width: 100%; margin-bottom: 10px; font-weight: 600; transition: background 0.2s;">
-                📋 Copy Profile Data
+                📋 Copy & Cache Profile
             </button>
+            <div style="font-size: 11px; color: #666; text-align: center; margin-top: -8px; margin-bottom: 12px;">
+                Copies to clipboard + saves to cache for Unnanu
+            </div>
             
             <button id="view-cache-btn" style="background: #28a745; color: white; border: none; padding: 14px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; width: 100%; margin-bottom: 10px; font-weight: 600;">
                 🗂️ View Session Cache
@@ -815,9 +939,26 @@ function setupSidebarListeners(sidebar, profileData) {
 
 async function copyProfileData(profileData) {
     try {
+        // First, copy to clipboard
         const formatted = JSON.stringify(profileData, null, 2);
         await navigator.clipboard.writeText(formatted);
-        showStatus('✅ Profile data copied to clipboard!', 'success');
+        
+        // Then, save to cache for Unnanu CRM
+        if (typeof DataSend !== 'undefined' && profileData) {
+            try {
+                await DataSend.saveProfileToCache(profileData);
+                showStatus('✅ Profile copied to clipboard AND saved to cache!\n📤 Will be sent to Unnanu when tabs close.', 'success');
+            } catch (cacheError) {
+                // Handle extension reload gracefully
+                if (cacheError.message && cacheError.message.includes('Extension context invalidated')) {
+                    showStatus('✅ Profile copied to clipboard!\n⚠️ Extension was reloaded - please refresh page to enable caching.', 'info');
+                } else {
+                    showStatus('✅ Profile copied to clipboard!\n⚠️ Could not save to cache: ' + cacheError.message, 'info');
+                }
+            }
+        } else {
+            showStatus('✅ Profile data copied to clipboard!', 'success');
+        }
     } catch (error) {
         console.error('❌ Copy failed:', error);
         showStatus('❌ Failed to copy. Check console.', 'error');
@@ -918,6 +1059,150 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     return true;
 });
+
+// ============================================================================
+// PAGE SCRAPING FOR TALENT MODE (runs in content script, has full page access)
+// ============================================================================
+
+function scrapeJobPageData() {
+    console.log('🔍 Scraping job page data from content script...');
+    
+    const data = {
+        url: window.location.href,
+        domain: window.location.hostname,
+        title: '',
+        company: '',
+        location: '',
+        salary: '',
+        description: ''
+    };
+    
+    // Extract Job Title
+    const titleSelectors = [
+        'h1.job-title', '.job-posting-title', '[data-qa="job-title"]',
+        'h2[data-automation-id="jobPostingHeader"]', '.job-title h2',
+        '.app-title', '#header h1', '.posting-headline h2',
+        'h1', 'h2', '.job-title', '.position-title'
+    ];
+    
+    for (const selector of titleSelectors) {
+        const el = document.querySelector(selector);
+        if (el && el.textContent.trim()) {
+            data.title = el.textContent.trim().replace(/\s+/g, ' ');
+            break;
+        }
+    }
+    
+    // Extract Company
+    const companySelectors = [
+        '.company-name', '[data-qa="company-name"]',
+        '[data-automation-id="company"]', '.company',
+        '#company_name', '[class*="company"]', '.employer-name'
+    ];
+    
+    for (const selector of companySelectors) {
+        const el = document.querySelector(selector);
+        if (el && el.textContent.trim()) {
+            data.company = el.textContent.trim().replace(/\s+/g, ' ');
+            break;
+        }
+    }
+    
+    // Extract Location
+    const locationSelectors = [
+        '.job-location', '[data-qa="location"]',
+        '[data-automation-id="location"]', '.location',
+        '[class*="location"]', '.job-info .location'
+    ];
+    
+    for (const selector of locationSelectors) {
+        const el = document.querySelector(selector);
+        if (el && el.textContent.trim()) {
+            data.location = el.textContent.trim().replace(/\s+/g, ' ');
+            break;
+        }
+    }
+    
+    console.log('✅ Scraped job data:', data);
+    return data;
+}
+
+function scanFormFields() {
+    console.log('🔍 Scanning form fields from content script...');
+    
+    const fields = [];
+    const inputs = document.querySelectorAll(`
+        input[type="text"], 
+        input[type="email"], 
+        input[type="tel"], 
+        input[type="url"], 
+        input[type="number"],
+        input:not([type]), 
+        textarea, 
+        select
+    `);
+    
+    inputs.forEach((input, index) => {
+        // Skip hidden or irrelevant fields
+        if (input.type === 'hidden' || 
+            input.type === 'button' || 
+            input.type === 'submit' ||
+            input.style.display === 'none') {
+            return;
+        }
+        
+        // Get label
+        let label = '';
+        if (input.id) {
+            const labelEl = document.querySelector(`label[for="${input.id}"]`);
+            if (labelEl) label = labelEl.textContent.trim();
+        }
+        if (!label) {
+            const parentLabel = input.closest('label');
+            if (parentLabel) label = parentLabel.textContent.trim();
+        }
+        
+        fields.push({
+            index: index,
+            id: input.id || '',
+            name: input.name || '',
+            type: input.type || input.tagName.toLowerCase(),
+            placeholder: input.placeholder || '',
+            label: label,
+            className: input.className || '',
+            value: input.value || ''
+        });
+    });
+    
+    console.log(`✅ Found ${fields.length} form fields`);
+    return fields;
+}
+
+function fillFieldOnPage(identifier, value) {
+    console.log(`✏️ Filling field: ${identifier} = ${value}`);
+    
+    // Try to find the field by id, name, or other attributes
+    let field = document.getElementById(identifier) ||
+                document.querySelector(`[name="${identifier}"]`) ||
+                document.querySelector(`input[placeholder*="${identifier}"]`);
+    
+    if (field) {
+        field.value = value;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+        field.dispatchEvent(new Event('blur', { bubbles: true }));
+        
+        // Visual feedback
+        field.style.backgroundColor = '#d4edda';
+        setTimeout(() => {
+            field.style.backgroundColor = '';
+        }, 2000);
+        
+        return true;
+    }
+    
+    return false;
+}
 
 // ============================================================================
 // PAGE ANALYSIS FOR JOB APPLICATIONS

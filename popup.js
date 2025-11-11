@@ -76,6 +76,16 @@ async function showTalentDashboard() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     const currentTab = tabs[0];
     
+    // Get cached job applications
+    let applicationCount = 0;
+    try {
+        const result = await chrome.storage.local.get(['unnanu_job_applications']);
+        const jobCache = result.unnanu_job_applications || { applications: [] };
+        applicationCount = jobCache.applications.length;
+    } catch (e) {
+        console.error('Error loading job cache:', e);
+    }
+    
     statsDiv.innerHTML = `
         <h4 style="color: #667eea; margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">🎯 Job Application Assistant</h4>
         
@@ -84,14 +94,20 @@ async function showTalentDashboard() {
             <div style="font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px;" id="page-analysis">Analyzing...</div>
             <div style="font-size: 12px; color: #666;" id="page-url">${currentTab?.url || 'Unknown'}</div>
         </div>
+        
+        <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #28a745;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Applications Tracked:</div>
+            <div style="font-size: 24px; font-weight: 700; color: #28a745;">${applicationCount}</div>
+            ${applicationCount > 0 ? '<button id="view-applications-btn" style="margin-top: 8px; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600;">📋 View Applications</button>' : ''}
+        </div>
 
         <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
             <div style="font-size: 13px; font-weight: 600; color: #667eea; margin-bottom: 10px;">📝 Your Profile (Ready to Auto-Fill)</div>
             <div style="font-size: 11px; color: #555; line-height: 1.8;">
-                <div><strong>Name:</strong> Max Deleonardis</div>
-                <div><strong>Email:</strong> max@amarketology.com</div>
-                <div><strong>Phone:</strong> +1 575 495 0323</div>
-                <div><strong>LinkedIn:</strong> /in/max-deleonardis-341a01350/</div>
+                <div><strong>Name:</strong> Maximillion Deleonardis</div>
+                <div><strong>Email:</strong> max@unnanu.ai</div>
+                <div><strong>Phone:</strong> (575) 495-0323</div>
+                <div><strong>Address:</strong> 4308 Canoas Dr, Austin, TX 78730</div>
             </div>
         </div>
 
@@ -101,6 +117,12 @@ async function showTalentDashboard() {
             <div style="font-size: 11px; opacity: 0.9;">to open auto-fill sidebar</div>
         </div>
     `;
+    
+    // Add event listener for view applications button
+    const viewAppBtn = document.getElementById('view-applications-btn');
+    if (viewAppBtn) {
+        viewAppBtn.addEventListener('click', showApplicationsList);
+    }
 
     // Analyze the current page
     try {
@@ -127,9 +149,58 @@ async function showTalentDashboard() {
     document.getElementById('send-now-btn').style.display = 'none';
     document.getElementById('clear-cache-btn').style.display = 'none';
     
-    // Show Go to LinkedIn button with different text for talent mode
+    // Show Go to Unnanu button with different text for talent mode
     document.getElementById('go-to-linkedin-btn').style.display = 'block';
-    document.getElementById('go-to-linkedin-btn').textContent = '🔍 Browse Jobs on LinkedIn';
+    document.getElementById('go-to-linkedin-btn').textContent = '🔍 Browse Jobs on unnanu.talent.com';
+}
+
+// Show list of cached job applications
+async function showApplicationsList() {
+    try {
+        const result = await chrome.storage.local.get(['unnanu_job_applications']);
+        const jobCache = result.unnanu_job_applications || { applications: [] };
+        
+        const statsDiv = document.getElementById('session-stats');
+        statsDiv.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <h4 style="color: #667eea; margin: 0; font-size: 16px; font-weight: 600;">📋 Your Applications</h4>
+                <button id="back-to-dashboard" style="padding: 6px 12px; background: #e0e0e0; color: #333; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600;">← Back</button>
+            </div>
+            
+            <div style="max-height: 350px; overflow-y: auto;">
+                ${jobCache.applications.length === 0 ? 
+                    '<div style="text-align: center; padding: 30px; color: #999;">No applications tracked yet</div>' :
+                    jobCache.applications.map(app => `
+                        <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid ${app.status === 'filled' ? '#28a745' : '#667eea'}; cursor: pointer;" data-url="${app.url}">
+                            <div style="font-size: 13px; font-weight: 600; color: #333; margin-bottom: 4px;">${app.jobTitle}</div>
+                            <div style="font-size: 11px; color: #666; margin-bottom: 6px;">${app.company} · ${app.location || 'Remote'}</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #999;">
+                                <span>${new Date(app.timestamp).toLocaleDateString()}</span>
+                                <span style="background: ${app.status === 'filled' ? '#28a745' : '#667eea'}; color: white; padding: 3px 8px; border-radius: 12px; font-weight: 600;">
+                                    ${app.status === 'filled' ? '✓ Filled' : '○ Detected'}
+                                </span>
+                            </div>
+                        </div>
+                    `).join('')
+                }
+            </div>
+        `;
+        
+        // Add back button listener
+        document.getElementById('back-to-dashboard')?.addEventListener('click', () => {
+            showTalentDashboard();
+        });
+        
+        // Add click listeners to open application URLs
+        statsDiv.querySelectorAll('[data-url]').forEach(el => {
+            el.addEventListener('click', () => {
+                const url = el.getAttribute('data-url');
+                chrome.tabs.create({ url });
+            });
+        });
+    } catch (error) {
+        console.error('Error showing applications list:', error);
+    }
 }
 
 // ============================================================================
@@ -178,17 +249,23 @@ async function loadSessionStats() {
         if (response?.success && response.stats) {
             const stats = response.stats;
             
-            // Update profile count
-            document.getElementById('profile-count').textContent = stats.profileCount || 0;
+            // Update profile count (check if element exists)
+            const profileCountEl = document.getElementById('profile-count');
+            if (profileCountEl) {
+                profileCountEl.textContent = stats.profileCount || 0;
+            }
             
             // Calculate session time
-            if (stats.sessionStart) {
-                const sessionStart = new Date(stats.sessionStart);
-                const now = new Date();
-                const diffMinutes = Math.floor((now - sessionStart) / (1000 * 60));
-                document.getElementById('session-time').textContent = diffMinutes + 'm';
-            } else {
-                document.getElementById('session-time').textContent = '0m';
+            const sessionTimeEl = document.getElementById('session-time');
+            if (sessionTimeEl) {
+                if (stats.sessionStart) {
+                    const sessionStart = new Date(stats.sessionStart);
+                    const now = new Date();
+                    const diffMinutes = Math.floor((now - sessionStart) / (1000 * 60));
+                    sessionTimeEl.textContent = diffMinutes + 'm';
+                } else {
+                    sessionTimeEl.textContent = '0m';
+                }
             }
             
             // Update profile list
@@ -357,7 +434,7 @@ async function handleChangeRole() {
 // ============================================================================
 
 function openLinkedIn() {
-    chrome.tabs.create({ url: 'https://www.linkedin.com' });
+    chrome.tabs.create({ url: 'https://unnanu.talent.com' });
     window.close();
 }
 

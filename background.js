@@ -151,13 +151,16 @@ const DataSend = {
                 throw new Error('API Error: ' + response.status);
             }
         } catch (error) {
-            console.error('❌ Send attempt ' + attempt + ' failed:', error.message);
+            // Only log on first attempt to reduce console spam
+            if (attempt === 1) {
+                console.log('⚠️ API not available (expected during development):', error.message);
+            }
             
             if (attempt < this.CONFIG.RETRY_ATTEMPTS) {
-                console.log('🔄 Retrying in ' + (this.CONFIG.RETRY_DELAY / 1000) + 's...');
                 await this.sleep(this.CONFIG.RETRY_DELAY);
                 return this.sendWithRetry(payload, attempt + 1);
             } else {
+                console.log('ℹ️ Profiles kept in cache for later sync (' + payload.profileCount + ' profiles)');
                 return { 
                     success: false, 
                     error: error.message,

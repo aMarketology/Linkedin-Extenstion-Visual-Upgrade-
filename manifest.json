@@ -24,6 +24,7 @@
         "*://*.taleo.net/*",
         "*://*.careers-page.com/*",
         "*://*.breezy.hr/*",
+        "*://*.hireology.com/*",
         "https://plugin.unnanu.com/*"
     ],
     "icons": {
@@ -66,7 +67,8 @@
                 "*://*.icims.com/*",
                 "*://*.taleo.net/*",
                 "*://*.careers-page.com/*",
-                "*://*.breezy.hr/*"
+                "*://*.breezy.hr/*",
+                "*://*.hireology.com/*"
             ],
             "js": ["content.js"],
             "run_at": "document_idle"
@@ -95,6 +97,7 @@
             "*://*.taleo.net/*",
             "*://*.careers-page.com/*",
             "*://*.breezy.hr/*",
+            "*://*.hireology.com/*",
             "*://*/*"
         ]
     }]

@@ -16,7 +16,33 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff;
             padding: 20px;
+            padding-top: 60px;
             min-height: 100vh;
+            position: relative;
+        }
+
+        .close-btn {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
         }
 
         .container {
@@ -112,6 +138,122 @@
             line-height: 1.6;
         }
 
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .upload-area:hover {
+            background: #f8f9ff;
+            border-color: #764ba2;
+        }
+
+        .upload-area.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .upload-text {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .upload-hint {
+            font-size: 11px;
+            color: #999;
+        }
+
+        #resumeFileInput {
+            display: none;
+        }
+
+        .uploaded-file {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .file-icon {
+            font-size: 20px;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .file-size {
+            color: #999;
+            font-size: 11px;
+        }
+
+        .remove-file-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+        }
+
+        .remove-file-btn:hover {
+            color: #a02a37;
+        }
+
+        .parse-btn {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .parse-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .parse-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .data-row {
             display: flex;
             margin-bottom: 8px;
@@ -129,6 +271,24 @@
 
         .data-value {
             color: #333;
+        }
+        
+        .clickable-data {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 2px 6px;
+            border-radius: 4px;
+            position: relative;
+        }
+        
+        .clickable-data:hover {
+            background: #e8ebff;
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        .clickable-data:active {
+            transform: scale(0.98);
         }
 
         .auto-fill-btn {
@@ -240,6 +400,8 @@
     </style>
 </head>
 <body>
+    <button class="close-btn" id="closeSidebarBtn" title="Close sidebar">&times;</button>
+    
     <div class="container">
         <div class="header">
             <div class="logo">🎯</div>
@@ -270,36 +432,82 @@
 
             <div class="profile-section">
                 <div class="section-title">
-                    <span class="mini-icon">👤</span>
+                    <span class="mini-icon">�</span>
+                    Upload Resume
+                </div>
+                <div class="upload-section">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📎</div>
+                        <div class="upload-text">Click to upload or drag & drop</div>
+                        <div class="upload-hint">PDF, DOC, DOCX (Max 10MB)</div>
+                    </div>
+                    <input type="file" id="resumeFileInput" accept=".pdf,.doc,.docx,.txt" />
+                    
+                    <div id="uploadedFileInfo" style="display: none;" class="uploaded-file">
+                        <div class="file-icon">📄</div>
+                        <div class="file-info">
+                            <div class="file-name" id="fileName"></div>
+                            <div class="file-size" id="fileSize"></div>
+                        </div>
+                        <button class="remove-file-btn" id="removeFileBtn" title="Remove file">×</button>
+                    </div>
+                    
+                    <button class="parse-btn" id="parseResumeBtn" style="display: none;">
+                        📊 Parse Resume & Update Profile
+                    </button>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="profile-section">
+                <div class="section-title">
+                    <span class="mini-icon">�👤</span>
                     Your Profile Data
                 </div>
                 <div class="profile-data" id="profileData">
                     <div class="data-row">
                         <span class="data-label">Name:</span>
-                        <span class="data-value">Max Deleonardis</span>
+                        <span class="data-value">Maximillion Deleonardis</span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">Email:</span>
-                        <span class="data-value">max@amarketology.com</span>
+                        <span class="data-value">max@unnanu.ai</span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">Phone:</span>
-                        <span class="data-value">+1 575 495 0323</span>
+                        <span class="data-value">(575) 495-0323</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Address:</span>
+                        <span class="data-value">4308 Canoas Drive, Austin, TX 78730</span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">LinkedIn:</span>
                         <span class="data-value">linkedin.com/in/max-deleonardis-341a01350/</span>
                     </div>
-                    <div class="data-row">
-                        <span class="data-label">Location:</span>
-                        <span class="data-value">78730, United States</span>
-                    </div>
                 </div>
+            </div>
+            
+            <div class="divider" id="questionsDivider" style="display: none;"></div>
+            
+            <div class="profile-section" id="questionsSection" style="display: none;">
+                <div class="section-title">
+                    <span class="mini-icon">❓</span>
+                    Application Questions
+                </div>
+                <div id="questionsList" style="font-size: 11px; color: #555; line-height: 1.8;"></div>
+            </div>
             </div>
 
             <button class="auto-fill-btn" id="autoFillBtn">
                 <span>✨</span>
                 <span>Auto-Fill Application</span>
+            </button>
+            
+            <button class="refresh-btn" id="refreshFieldsBtn" style="margin-top: 10px; width: 100%; padding: 12px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); border-radius: 12px; color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; transition: all 0.3s ease;">
+                <span>🔄</span>
+                <span>Refresh Fields</span>
             </button>
 
             <div id="statusMessage"></div>
