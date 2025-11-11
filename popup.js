@@ -57,11 +57,163 @@ function showAlreadySetupView(role) {
     const modeText = role === 'recruiter' ? '🎯 Recruiter Mode' : '💼 Talent Mode';
     document.getElementById('current-mode').textContent = modeText;
     
-    // Load session stats
+    // Show different content based on role
+    if (role === 'talent') {
+        showTalentDashboard();
+    } else {
+        showRecruiterDashboard();
+    }
+}
+
+// ============================================================================
+// TALENT DASHBOARD
+// ============================================================================
+
+async function showTalentDashboard() {
+    const statsDiv = document.getElementById('session-stats');
+    
+    // Get current tab to analyze the page
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const currentTab = tabs[0];
+    
+    statsDiv.innerHTML = `
+        <h4 style="color: #667eea; margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">🎯 Job Application Assistant</h4>
+        
+        <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #667eea;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Current Page:</div>
+            <div style="font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px;" id="page-analysis">Analyzing...</div>
+            <div style="font-size: 12px; color: #666;" id="page-url">${currentTab?.url || 'Unknown'}</div>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+            <div style="font-size: 13px; font-weight: 600; color: #667eea; margin-bottom: 10px;">📝 Your Profile (Ready to Auto-Fill)</div>
+            <div style="font-size: 11px; color: #555; line-height: 1.8;">
+                <div><strong>Name:</strong> Max Deleonardis</div>
+                <div><strong>Email:</strong> max@amarketology.com</div>
+                <div><strong>Phone:</strong> +1 575 495 0323</div>
+                <div><strong>LinkedIn:</strong> /in/max-deleonardis-341a01350/</div>
+            </div>
+        </div>
+
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 8px;">🎯</div>
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 5px;">Click the floating icon</div>
+            <div style="font-size: 11px; opacity: 0.9;">to open auto-fill sidebar</div>
+        </div>
+    `;
+
+    // Analyze the current page
+    try {
+        const response = await chrome.tabs.sendMessage(currentTab.id, { action: 'analyzePageForJob' });
+        if (response?.isJobPage) {
+            document.getElementById('page-analysis').innerHTML = `
+                <div style="color: #28a745;">✓ Job Application Page Detected</div>
+                ${response.jobTitle ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${response.jobTitle}</div>` : ''}
+            `;
+        } else {
+            document.getElementById('page-analysis').innerHTML = `
+                <div style="color: #ff9800;">⚠️ Not a job application page</div>
+                <div style="font-size: 11px; color: #666; margin-top: 4px;">Navigate to a job application to use auto-fill</div>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('page-analysis').innerHTML = `
+            <div style="color: #666;">Navigate to any job application page</div>
+        `;
+    }
+
+    // Hide recruiter-specific buttons
+    document.getElementById('view-cache-btn').style.display = 'none';
+    document.getElementById('send-now-btn').style.display = 'none';
+    document.getElementById('clear-cache-btn').style.display = 'none';
+    
+    // Show Go to LinkedIn button with different text for talent mode
+    document.getElementById('go-to-linkedin-btn').style.display = 'block';
+    document.getElementById('go-to-linkedin-btn').textContent = '🔍 Browse Jobs on LinkedIn';
+}
+
+// ============================================================================
+// RECRUITER DASHBOARD
+// ============================================================================
+
+function showRecruiterDashboard() {
+    // Reset the session stats div to default recruiter layout
+    const statsDiv = document.getElementById('session-stats');
+    statsDiv.innerHTML = `
+        <h4 style="color: #0073b1; margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">📊 Current Session</h4>
+        <div style="display: flex; justify-content: space-around; margin-bottom: 10px;">
+            <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 700; color: #0073b1;" id="profile-count">0</div>
+                <div style="font-size: 11px; color: #666;">Profiles Cached</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 24px; font-weight: 700; color: #28a745;" id="session-time">0m</div>
+                <div style="font-size: 11px; color: #666;">Session Time</div>
+            </div>
+        </div>
+        <div id="profile-list" style="max-height: 150px; overflow-y: auto; margin-top: 10px;">
+            <!-- Profile list will be populated here -->
+        </div>
+    `;
+    
+    // Load session stats for recruiter mode
     loadSessionStats();
     
     // Refresh stats every 3 seconds
     setInterval(loadSessionStats, 3000);
+    
+    // Make sure all buttons are visible for recruiter
+    document.getElementById('view-cache-btn').style.display = 'block';
+    document.getElementById('send-now-btn').style.display = 'block';
+    document.getElementById('clear-cache-btn').style.display = 'block';
+    document.getElementById('go-to-linkedin-btn').style.display = 'block';
+    document.getElementById('go-to-linkedin-btn').textContent = 'Go to LinkedIn';
+}
+
+async function loadSessionStats() {
+    try {
+        // Request cache stats from background script
+        const response = await chrome.runtime.sendMessage({ action: 'getCacheStats' });
+        
+        if (response?.success && response.stats) {
+            const stats = response.stats;
+            
+            // Update profile count
+            document.getElementById('profile-count').textContent = stats.profileCount || 0;
+            
+            // Calculate session time
+            if (stats.sessionStart) {
+                const sessionStart = new Date(stats.sessionStart);
+                const now = new Date();
+                const diffMinutes = Math.floor((now - sessionStart) / (1000 * 60));
+                document.getElementById('session-time').textContent = diffMinutes + 'm';
+            } else {
+                document.getElementById('session-time').textContent = '0m';
+            }
+            
+            // Update profile list
+            const profileList = document.getElementById('profile-list');
+            if (stats.profiles && stats.profiles.length > 0) {
+                profileList.innerHTML = `
+                    <div style="font-size: 11px; color: #666; margin-bottom: 5px; font-weight: 600;">Cached Profiles:</div>
+                    ${stats.profiles.map((p, i) => `
+                        <div style="padding: 5px; background: white; margin-bottom: 4px; border-radius: 4px; font-size: 11px; color: #333;">
+                            ${i + 1}. ${p.name || 'Unknown'}
+                        </div>
+                    `).join('')}
+                `;
+            } else {
+                profileList.innerHTML = `
+                    <div style="text-align: center; padding: 15px; color: #999; font-size: 12px;">
+                        No profiles cached yet.<br>
+                        Visit LinkedIn profiles to start collecting data.
+                    </div>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error loading session stats:', error);
+    }
 }
 
 // ============================================================================

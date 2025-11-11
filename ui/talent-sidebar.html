@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unnanu Talent Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            color: #333;
+        }
+
+        .job-details {
+            margin-bottom: 20px;
+        }
+
+        .job-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .job-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .job-info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            min-width: 80px;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 20px 0;
+        }
+
+        .profile-section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .profile-data {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .data-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+
+        .data-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .data-label {
+            font-weight: 600;
+            color: #666;
+            min-width: 100px;
+        }
+
+        .data-value {
+            color: #333;
+        }
+
+        .auto-fill-btn {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .auto-fill-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .auto-fill-btn:active {
+            transform: translateY(0);
+        }
+
+        .auto-fill-btn.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 16px;
+            font-weight: 500;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .detected-fields {
+            margin-top: 16px;
+        }
+
+        .field-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #fff;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            border-left: 3px solid #667eea;
+        }
+
+        .field-label {
+            font-weight: 600;
+            color: #667eea;
+            min-width: 80px;
+        }
+
+        .field-status {
+            margin-left: auto;
+            font-size: 16px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .mini-icon {
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🎯</div>
+            <h1>Talent Assistant</h1>
+            <p class="subtitle">Auto-fill job applications instantly</p>
+        </div>
+
+        <div class="card">
+            <div class="job-details" id="jobDetails">
+                <div class="job-title" id="jobTitle">Loading job details...</div>
+                <div class="job-info">
+                    <div class="job-info-item">
+                        <span class="info-label">Company:</span>
+                        <span id="companyName">—</span>
+                    </div>
+                    <div class="job-info-item">
+                        <span class="info-label">Location:</span>
+                        <span id="jobLocation">—</span>
+                    </div>
+                    <div class="job-info-item">
+                        <span class="info-label">Salary:</span>
+                        <span id="jobSalary">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="profile-section">
+                <div class="section-title">
+                    <span class="mini-icon">👤</span>
+                    Your Profile Data
+                </div>
+                <div class="profile-data" id="profileData">
+                    <div class="data-row">
+                        <span class="data-label">Name:</span>
+                        <span class="data-value">Max Deleonardis</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Email:</span>
+                        <span class="data-value">max@amarketology.com</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Phone:</span>
+                        <span class="data-value">+1 575 495 0323</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">LinkedIn:</span>
+                        <span class="data-value">linkedin.com/in/max-deleonardis-341a01350/</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Location:</span>
+                        <span class="data-value">78730, United States</span>
+                    </div>
+                </div>
+            </div>
+
+            <button class="auto-fill-btn" id="autoFillBtn">
+                <span>✨</span>
+                <span>Auto-Fill Application</span>
+            </button>
+
+            <div id="statusMessage"></div>
+
+            <div class="detected-fields" id="detectedFields" style="display: none;">
+                <div class="section-title">
+                    <span class="mini-icon">📝</span>
+                    Detected Fields
+                </div>
+                <div id="fieldsList"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Powered by Unnanu Talent Assistant
+        </div>
+    </div>
+
+    <script src="talent-sidebar.js"></script>
+</body>
+</html>

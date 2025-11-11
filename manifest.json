@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "Unnanu LinkedIn Extension",
-    "description": "LinkedIn profile extractor with sidebar interface and smart data collection",
-    "version": "2.0",
+    "name": "Unnanu Job Assistant",
+    "description": "LinkedIn profile extractor for recruiters and job application assistant for talent",
+    "version": "2.1",
     "permissions": [
         "activeTab",
         "storage",
@@ -10,6 +10,20 @@
     ],
     "host_permissions": [
         "*://*.linkedin.com/*",
+        "*://*.myworkdayjobs.com/*",
+        "*://*.workday.com/*",
+        "*://*.monster.com/*",
+        "*://*.indeed.com/*",
+        "*://*.glassdoor.com/*",
+        "*://*.ziprecruiter.com/*",
+        "*://*.greenhouse.io/*",
+        "*://*.lever.co/*",
+        "*://*.smartrecruiters.com/*",
+        "*://*.jobvite.com/*",
+        "*://*.icims.com/*",
+        "*://*.taleo.net/*",
+        "*://*.careers-page.com/*",
+        "*://*.breezy.hr/*",
         "https://plugin.unnanu.com/*"
     ],
     "icons": {
@@ -20,7 +34,7 @@
     },
     "action": {
         "default_popup": "popup.html",
-        "default_title": "Unnanu - Your LinkedIn Assistant",
+        "default_title": "Unnanu - Recruiter & Talent Assistant",
         "default_icon": {
             "16": "images/icon-2.png",
             "32": "images/icon-2.png",
@@ -31,9 +45,57 @@
     "background": {
         "service_worker": "background.js"
     },
-    "content_scripts": [{
-        "matches": ["*://*.linkedin.com/*"],
-        "js": ["datasend.js", "content.js"],
-        "run_at": "document_idle"
+    "content_scripts": [
+        {
+            "matches": ["*://*.linkedin.com/*"],
+            "js": ["datasend.js", "content.js"],
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "*://*.myworkdayjobs.com/*",
+                "*://*.workday.com/*",
+                "*://*.monster.com/*",
+                "*://*.indeed.com/*",
+                "*://*.glassdoor.com/*",
+                "*://*.ziprecruiter.com/*",
+                "*://*.greenhouse.io/*",
+                "*://*.lever.co/*",
+                "*://*.smartrecruiters.com/*",
+                "*://*.jobvite.com/*",
+                "*://*.icims.com/*",
+                "*://*.taleo.net/*",
+                "*://*.careers-page.com/*",
+                "*://*.breezy.hr/*"
+            ],
+            "js": ["content.js"],
+            "run_at": "document_idle"
+        }
+    ],
+    "web_accessible_resources": [{
+        "resources": [
+            "ui/sidebar.html",
+            "ui/sidebar.css",
+            "ui/talent-sidebar.html",
+            "ui/talent-sidebar.js"
+        ],
+        "matches": [
+            "*://*.linkedin.com/*",
+            "*://*.myworkdayjobs.com/*",
+            "*://*.workday.com/*",
+            "*://*.monster.com/*",
+            "*://*.indeed.com/*",
+            "*://*.glassdoor.com/*",
+            "*://*.ziprecruiter.com/*",
+            "*://*.greenhouse.io/*",
+            "*://*.lever.co/*",
+            "*://*.smartrecruiters.com/*",
+            "*://*.jobvite.com/*",
+            "*://*.icims.com/*",
+            "*://*.taleo.net/*",
+            "*://*.careers-page.com/*",
+            "*://*.breezy.hr/*",
+            "*://*/*"
+        ]
     }]
 }

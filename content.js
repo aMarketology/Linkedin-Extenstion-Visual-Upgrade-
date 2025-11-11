@@ -33,11 +33,18 @@ let sidebarOpen = false;
     
     console.log(`✅ User role: ${userRole}`);
     
-    // Initialize features based on role
-    if (userRole === 'recruiter') {
+    // Check if we're on LinkedIn
+    const isLinkedIn = window.location.hostname.includes('linkedin.com');
+    
+    // Initialize features based on role and website
+    if (userRole === 'recruiter' && isLinkedIn) {
+        // Recruiter mode only works on LinkedIn
         initializeRecruiterMode();
     } else if (userRole === 'talent') {
+        // Talent mode works on all job sites
         initializeTalentMode();
+    } else if (userRole === 'recruiter' && !isLinkedIn) {
+        console.log('ℹ️ Recruiter mode only works on LinkedIn. Switch to Talent mode for other job sites.');
     }
 })();
 
@@ -141,25 +148,31 @@ function initializeRecruiterMode() {
 // ============================================================================
 
 function initializeTalentMode() {
-    console.log('� Initializing Talent Mode...');
+    console.log('🎯 Initializing Talent Mode...');
     
-    // Show talent features on job pages
-    if (window.location.href.includes('linkedin.com/jobs')) {
-        createJobHelperIcon();
-    }
+    // Create floating icon for talent mode (works on any page)
+    createJobHelperIcon();
 }
 
+let talentSidebarOpen = false;
+
 function createJobHelperIcon() {
+    // Remove existing icon if present
+    const existingIcon = document.getElementById('unnanu-job-helper');
+    if (existingIcon) {
+        existingIcon.remove();
+    }
+
     const icon = document.createElement('div');
     icon.id = 'unnanu-job-helper';
-    icon.innerHTML = '💼';
+    icon.innerHTML = '🎯';
     icon.style.cssText = `
         position: fixed;
         top: 50%;
         right: 20px;
         width: 60px;
         height: 60px;
-        background: linear-gradient(135deg, #28a745, #20c997);
+        background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
         border-radius: 50%;
         cursor: pointer;
@@ -169,30 +182,102 @@ function createJobHelperIcon() {
         justify-content: center;
         font-size: 24px;
         transform: translateY(-50%);
-        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         transition: all 0.3s ease;
     `;
     
     icon.addEventListener('mouseenter', function() {
         this.style.transform = 'translateY(-50%) scale(1.1)';
-        this.style.boxShadow = '0 6px 20px rgba(40, 167, 69, 0.5)';
+        this.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
     });
     
     icon.addEventListener('mouseleave', function() {
         this.style.transform = 'translateY(-50%) scale(1)';
-        this.style.boxShadow = '0 4px 12px rgba(40, 167, 69, 0.4)';
+        this.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
     });
     
     icon.addEventListener('click', function() {
-        openJobHelperSidebar();
+        toggleTalentSidebar();
     });
     
     document.body.appendChild(icon);
-    console.log('✅ Job helper icon added!');
+    console.log('✅ Talent helper icon added!');
+}
+
+function toggleTalentSidebar() {
+    if (talentSidebarOpen) {
+        closeTalentSidebar();
+    } else {
+        openTalentSidebar();
+    }
+}
+
+function openTalentSidebar() {
+    console.log('🎯 Opening Talent Sidebar...');
+    
+    // Remove existing sidebar if present
+    const existingSidebar = document.getElementById('unnanu-talent-sidebar');
+    if (existingSidebar) {
+        existingSidebar.remove();
+    }
+    
+    // Create iframe container
+    const sidebar = document.createElement('div');
+    sidebar.id = 'unnanu-talent-sidebar';
+    sidebar.style.cssText = `
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 450px;
+        height: 100vh;
+        z-index: 999999;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    // Add slide-in animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Create iframe to load the talent sidebar
+    const iframe = document.createElement('iframe');
+    iframe.src = chrome.runtime.getURL('ui/talent-sidebar.html');
+    iframe.style.cssText = `
+        width: 100%;
+        height: 100%;
+        border: none;
+        display: block;
+    `;
+    
+    sidebar.appendChild(iframe);
+    document.body.appendChild(sidebar);
+    
+    talentSidebarOpen = true;
+    console.log('✅ Talent sidebar opened!');
+}
+
+function closeTalentSidebar() {
+    console.log('📁 Closing talent sidebar...');
+    const sidebar = document.getElementById('unnanu-talent-sidebar');
+    if (sidebar) {
+        sidebar.remove();
+        talentSidebarOpen = false;
+        console.log('✅ Talent sidebar closed!');
+    }
 }
 
 function openJobHelperSidebar() {
-    alert('🚧 Talent Mode features coming soon!\n\nFeatures:\n- Quick Apply Helper\n- Application Tracker\n- Job Alerts\n- Resume Optimizer');
+    openTalentSidebar();
 }
 
 // ============================================================================
@@ -826,7 +911,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         location.reload();
     }
     
+    if (request.action === 'analyzePageForJob') {
+        const analysis = analyzePageForJobApplication();
+        sendResponse(analysis);
+    }
+    
     return true;
 });
+
+// ============================================================================
+// PAGE ANALYSIS FOR JOB APPLICATIONS
+// ============================================================================
+
+function analyzePageForJobApplication() {
+    // Check if page has job application form fields
+    const formFields = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], textarea, input:not([type])');
+    
+    // Check for common job application indicators
+    const pageText = document.body.textContent.toLowerCase();
+    const jobKeywords = ['apply', 'application', 'resume', 'cover letter', 'job', 'position', 'career'];
+    const hasJobKeywords = jobKeywords.some(keyword => pageText.includes(keyword));
+    
+    // Try to extract job title
+    let jobTitle = null;
+    const titleSelectors = ['h1', '.job-title', '.position-title', '[class*="job"]', 'header h1'];
+    for (const selector of titleSelectors) {
+        const element = document.querySelector(selector);
+        if (element && element.textContent.trim()) {
+            jobTitle = element.textContent.trim();
+            break;
+        }
+    }
+    
+    const isJobPage = formFields.length >= 3 && hasJobKeywords;
+    
+    return {
+        isJobPage,
+        jobTitle,
+        formFieldCount: formFields.length,
+        url: window.location.href
+    };
+}
 
 console.log("✅ Unnanu extension initialization complete!");
