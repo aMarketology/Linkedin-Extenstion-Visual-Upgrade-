@@ -11,6 +11,12 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            pointer-events: auto !important;
+            opacity: 1 !important;
+            filter: none !important;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -38,6 +44,7 @@
             justify-content: center;
             transition: all 0.3s ease;
             z-index: 1000;
+            pointer-events: auto !important;
         }
 
         .close-btn:hover {
@@ -48,6 +55,14 @@
         .container {
             max-width: 400px;
             margin: 0 auto;
+            pointer-events: auto !important;
+            opacity: 1 !important;
+        }
+
+        /* Force all interactive elements to be clickable */
+        button, input, select, textarea, a, .clickable-data {
+            pointer-events: auto !important;
+            opacity: 1 !important;
         }
 
         .header {

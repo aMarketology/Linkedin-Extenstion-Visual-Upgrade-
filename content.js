@@ -261,12 +261,158 @@ function showBriefNotification(message) {
 function initializeTalentMode() {
     console.log('🎯 Initializing Talent Mode on:', window.location.hostname);
     
-    // Create floating icon for talent mode (works on any page)
-    createJobHelperIcon();
-    console.log('✅ Talent helper icon created!');
+    // Check if this looks like a job application page
+    if (isJobApplicationPage()) {
+        console.log('✅ Job application page detected!');
+        // Create floating icon for talent mode (works on any page)
+        createJobHelperIcon();
+        console.log('✅ Talent helper icon created!');
+        
+        // Watch for modal/overlay creation and maintain z-index
+        setupModalWatcher();
+    } else {
+        console.log('ℹ️ Not a job application page, but icon will be created anyway for manual use');
+        // Still create icon - user might navigate to application form
+        createJobHelperIcon();
+        setupModalWatcher();
+    }
+}
+
+/**
+ * Detect if the current page is likely a job application page
+ */
+function isJobApplicationPage() {
+    const url = window.location.href.toLowerCase();
+    const pageText = document.body.innerText.toLowerCase();
+    const pageHTML = document.body.innerHTML.toLowerCase();
+    
+    // URL-based detection
+    const jobUrlKeywords = [
+        '/career', '/job', '/apply', '/application', '/position', '/opening',
+        '/employment', '/hiring', '/recruit', '/vacancy', '/work-with-us',
+        '/join', '/opportunities'
+    ];
+    
+    const hasJobUrl = jobUrlKeywords.some(keyword => url.includes(keyword));
+    
+    // Form-based detection - look for application forms
+    const hasApplicationForm = 
+        document.querySelector('form[id*="apply"]') ||
+        document.querySelector('form[id*="application"]') ||
+        document.querySelector('form[class*="apply"]') ||
+        document.querySelector('form[class*="application"]') ||
+        document.querySelector('form[id*="career"]') ||
+        document.querySelector('form[class*="career"]') ||
+        document.querySelector('form[id*="job"]') ||
+        document.querySelector('form[class*="job"]');
+    
+    // Text-based detection - look for job application keywords
+    const jobKeywords = [
+        'apply now', 'submit application', 'job application', 'employment application',
+        'apply for this position', 'submit resume', 'upload resume', 'cover letter',
+        'start application', 'application form', 'apply online', 'job opening',
+        'position details', 'employment opportunity', 'career opportunity'
+    ];
+    
+    const hasJobKeywords = jobKeywords.some(keyword => 
+        pageText.includes(keyword) || pageHTML.includes(keyword)
+    );
+    
+    // Input field detection - look for typical application form fields
+    const applicationFields = [
+        'input[name*="resume"]', 'input[name*="cv"]', 
+        'input[name*="first"]', 'input[name*="last"]',
+        'input[type="file"][accept*="pdf"]',
+        'input[name*="phone"]', 'input[name*="email"]',
+        'textarea[name*="cover"]', 'textarea[name*="letter"]',
+        'select[name*="experience"]', 'select[name*="education"]'
+    ];
+    
+    const hasApplicationFields = applicationFields.some(selector => 
+        document.querySelector(selector)
+    );
+    
+    // Check for specific job application platforms
+    const jobPlatforms = [
+        'greenhouse.io', 'lever.co', 'workday.com', 'myworkdayjobs.com',
+        'indeed.com', 'ziprecruiter.com', 'linkedin.com', 'glassdoor.com',
+        'monster.com', 'careerbuilder.com', 'smartrecruiters.com',
+        'jobvite.com', 'icims.com', 'taleo.net', 'ultipro.com',
+        'paycomonline.com', 'bamboohr.com', 'breezy.hr', 'crewrecruiter.co'
+    ];
+    
+    const isJobPlatform = jobPlatforms.some(platform => 
+        window.location.hostname.includes(platform)
+    );
+    
+    // Page title detection
+    const pageTitle = document.title.toLowerCase();
+    const titleKeywords = ['career', 'job', 'apply', 'application', 'position', 'hiring', 'employment'];
+    const hasTitleKeyword = titleKeywords.some(keyword => pageTitle.includes(keyword));
+    
+    // Return true if multiple indicators suggest it's a job application page
+    const indicators = [
+        hasJobUrl,
+        hasApplicationForm,
+        hasJobKeywords,
+        hasApplicationFields,
+        isJobPlatform,
+        hasTitleKeyword
+    ].filter(Boolean).length;
+    
+    console.log('📊 Job page detection indicators:', {
+        hasJobUrl,
+        hasApplicationForm,
+        hasJobKeywords,
+        hasApplicationFields,
+        isJobPlatform,
+        hasTitleKeyword,
+        totalIndicators: indicators
+    });
+    
+    // Consider it a job application page if we have 2 or more indicators
+    return indicators >= 2;
 }
 
 let talentSidebarOpen = false;
+
+/**
+ * Watch for modals/overlays being added to the DOM and maintain our z-index
+ */
+function setupModalWatcher() {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1) { // Element node
+                    // Check if it's a modal/overlay
+                    const style = window.getComputedStyle(node);
+                    const zIndex = parseInt(style.zIndex);
+                    
+                    // If a high z-index element is added, re-assert our icon and sidebar
+                    if (zIndex > 1000000) {
+                        const icon = document.getElementById('unnanu-job-helper');
+                        const sidebar = document.getElementById('unnanu-talent-sidebar');
+                        
+                        if (icon) {
+                            icon.style.zIndex = '2147483647';
+                        }
+                        if (sidebar) {
+                            sidebar.style.zIndex = '2147483646';
+                        }
+                    }
+                }
+            });
+        });
+    });
+    
+    // Start observing
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    console.log('✅ Modal watcher initialized');
+}
 
 function createJobHelperIcon() {
     // Remove existing icon if present
@@ -279,7 +425,7 @@ function createJobHelperIcon() {
     icon.id = 'unnanu-job-helper';
     icon.innerHTML = '🎯';
     icon.style.cssText = `
-        position: fixed;
+        position: fixed !important;
         top: 50%;
         right: 20px;
         width: 60px;
@@ -288,7 +434,7 @@ function createJobHelperIcon() {
         color: white;
         border-radius: 50%;
         cursor: pointer;
-        z-index: 99999;
+        z-index: 2147483647 !important;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -296,6 +442,7 @@ function createJobHelperIcon() {
         transform: translateY(-50%);
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         transition: all 0.3s ease;
+        pointer-events: auto !important;
     `;
     
     icon.addEventListener('mouseenter', function() {
@@ -340,14 +487,16 @@ function openTalentSidebar() {
     const sidebar = document.createElement('div');
     sidebar.id = 'unnanu-talent-sidebar';
     sidebar.style.cssText = `
-        position: fixed;
+        position: fixed !important;
         top: 0;
         right: 0;
         width: 450px;
         height: 100vh;
-        z-index: 999999;
+        z-index: 2147483646 !important;
         box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
         animation: slideIn 0.3s ease-out;
+        pointer-events: auto !important;
+        opacity: 1 !important;
     `;
     
     // Add slide-in animation
@@ -361,6 +510,16 @@ function openTalentSidebar() {
                 transform: translateX(0);
             }
         }
+        
+        /* Ensure sidebar stays on top and clickable */
+        #unnanu-talent-sidebar {
+            isolation: isolate !important;
+        }
+        
+        #unnanu-talent-sidebar iframe {
+            pointer-events: auto !important;
+            opacity: 1 !important;
+        }
     `;
     document.head.appendChild(style);
     
@@ -372,6 +531,8 @@ function openTalentSidebar() {
         height: 100%;
         border: none;
         display: block;
+        pointer-events: auto !important;
+        opacity: 1 !important;
     `;
     
     sidebar.appendChild(iframe);

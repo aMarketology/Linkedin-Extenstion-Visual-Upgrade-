@@ -26,6 +26,7 @@
         "*://*.breezy.hr/*",
         "*://*.hireology.com/*",
         "*://*.crewrecruiter.co/*",
+        "*://*/*",
         "https://plugin.unnanu.com/*"
     ],
     "icons": {
@@ -70,7 +71,8 @@
                 "*://*.careers-page.com/*",
                 "*://*.breezy.hr/*",
                 "*://*.hireology.com/*",
-                "*://*.crewrecruiter.co/*"
+                "*://*.crewrecruiter.co/*",
+                "<all_urls>"
             ],
             "js": ["content.js"],
             "run_at": "document_idle"
