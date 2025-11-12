@@ -302,12 +302,44 @@
                     Change Role
                 </button>
 
+                <!-- Export Data Section -->
+                <div id="export-section" style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #f0f0f0;">
+                    <h3 style="font-size: 14px; margin-bottom: 12px; color: #555;">📤 Export Your Data</h3>
+                    
+                    <!-- Date Range Filter -->
+                    <div style="margin-bottom: 12px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
+                        <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">Date Range (Optional):</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="date" id="export-start-date" style="flex: 1; padding: 4px; font-size: 11px; border: 1px solid #ddd; border-radius: 3px;">
+                            <span style="color: #999;">to</span>
+                            <input type="date" id="export-end-date" style="flex: 1; padding: 4px; font-size: 11px; border: 1px solid #ddd; border-radius: 3px;">
+                        </div>
+                        <button id="clear-dates-btn" style="font-size: 10px; padding: 2px 6px; margin-top: 4px; background: transparent; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; color: #666;">Clear Dates</button>
+                    </div>
+
+                    <button id="export-data-btn" class="action-btn" style="width: 100%; background: #28a745; margin-bottom: 8px;">
+                        📊 Export to CSV
+                    </button>
+                    
+                    <!-- LinkedIn Warning (hidden by default) -->
+                    <div id="linkedin-warning" style="display: none; margin-bottom: 8px; padding: 8px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 11px;">
+                        <strong>⚠️ LinkedIn tabs detected!</strong><br>
+                        <span id="linkedin-tab-count"></span><br>
+                        <button id="close-linkedin-tabs-btn" style="margin-top: 6px; padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">
+                            Close All LinkedIn Tabs
+                        </button>
+                    </div>
+                    
+                    <div id="export-stats" style="font-size: 11px; color: #666; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px;"></div>
+                </div>
+
                 <!-- Status Message -->
                 <div id="status-msg" style="display: none; margin-top: 15px; padding: 10px; border-radius: 6px; font-size: 12px;"></div>
             </div>
         </div>
     </div>
 
+    <script src="data-upload.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>

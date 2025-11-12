@@ -321,6 +321,31 @@ function initializeEventListeners() {
     if (changeRoleBtn) {
         changeRoleBtn.addEventListener('click', handleChangeRole);
     }
+
+    // Export data button
+    const exportDataBtn = document.getElementById('export-data-btn');
+    if (exportDataBtn) {
+        exportDataBtn.addEventListener('click', handleExportData);
+    }
+
+    // Clear dates button
+    const clearDatesBtn = document.getElementById('clear-dates-btn');
+    if (clearDatesBtn) {
+        clearDatesBtn.addEventListener('click', () => {
+            document.getElementById('export-start-date').value = '';
+            document.getElementById('export-end-date').value = '';
+        });
+    }
+
+    // Close LinkedIn tabs button
+    const closeLinkedInTabsBtn = document.getElementById('close-linkedin-tabs-btn');
+    if (closeLinkedInTabsBtn) {
+        closeLinkedInTabsBtn.addEventListener('click', handleCloseLinkedInTabs);
+    }
+
+    // Load export stats and check LinkedIn tabs
+    loadExportStats();
+    checkLinkedInTabs();
 }
 
 // ============================================================================
@@ -451,6 +476,251 @@ async function getUserRole() {
         console.error('❌ Error getting user role:', error);
         return null;
     }
+}
+
+// ============================================================================
+// DATA EXPORT FUNCTIONS
+// ============================================================================
+
+/**
+ * Check for LinkedIn tabs and show warning if found
+ */
+async function checkLinkedInTabs() {
+    try {
+        const linkedInTabs = await DataUpload.getLinkedInTabs();
+        const warningDiv = document.getElementById('linkedin-warning');
+        const tabCountSpan = document.getElementById('linkedin-tab-count');
+        
+        if (!warningDiv || !tabCountSpan) return;
+
+        if (linkedInTabs.length > 0) {
+            tabCountSpan.textContent = `Found ${linkedInTabs.length} LinkedIn tab${linkedInTabs.length > 1 ? 's' : ''} open in browser windows.`;
+            warningDiv.style.display = 'block';
+        } else {
+            warningDiv.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('❌ Error checking LinkedIn tabs:', error);
+    }
+}
+
+/**
+ * Handle closing all LinkedIn tabs
+ */
+async function handleCloseLinkedInTabs() {
+    const closeBtn = document.getElementById('close-linkedin-tabs-btn');
+    if (!closeBtn) return;
+
+    try {
+        closeBtn.disabled = true;
+        closeBtn.textContent = 'Closing...';
+
+        const result = await DataUpload.closeAllLinkedInTabs();
+
+        if (result.success) {
+            showStatusMessage(
+                `✅ Closed ${result.closedCount} LinkedIn tab${result.closedCount > 1 ? 's' : ''}`,
+                'success'
+            );
+            
+            // Re-check after a short delay
+            setTimeout(async () => {
+                await checkLinkedInTabs();
+            }, 500);
+        } else {
+            showStatusMessage(
+                `❌ Error closing tabs: ${result.error}`,
+                'error'
+            );
+        }
+    } catch (error) {
+        console.error('❌ Error:', error);
+        showStatusMessage(`❌ Error: ${error.message}`, 'error');
+    } finally {
+        closeBtn.disabled = false;
+        closeBtn.textContent = 'Close All LinkedIn Tabs';
+    }
+}
+
+/**
+ * Handle export data button click
+ */
+async function handleExportData() {
+    const exportBtn = document.getElementById('export-data-btn');
+    const statusMsg = document.getElementById('status-msg');
+    
+    if (!exportBtn) return;
+
+    try {
+        // Get date range inputs
+        const startDate = document.getElementById('export-start-date')?.value || null;
+        const endDate = document.getElementById('export-end-date')?.value || null;
+
+        // Validate date range
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+            showStatusMessage('❌ Start date cannot be after end date', 'error');
+            return;
+        }
+
+        // Disable button and show loading state
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '⏳ Checking all browser windows...';
+
+        // Get current user role
+        const userRole = await getUserRole();
+
+        let result;
+        if (userRole === 'recruiter') {
+            // Export LinkedIn profiles
+            exportBtn.innerHTML = '⏳ Exporting profiles...';
+            result = await DataUpload.exportRecruiterDataToCSV(startDate, endDate);
+            
+            if (result.success) {
+                const dateInfo = (startDate || endDate) 
+                    ? ` (${startDate || 'start'} to ${endDate || 'present'})` 
+                    : '';
+                showStatusMessage(
+                    `✅ Exported ${result.recordCount} LinkedIn profiles${dateInfo}`,
+                    'success'
+                );
+            } else {
+                showStatusMessage(
+                    `❌ ${result.error}`,
+                    'error'
+                );
+            }
+        } else if (userRole === 'talent') {
+            // Export job applications
+            exportBtn.innerHTML = '⏳ Exporting applications...';
+            result = await DataUpload.exportTalentDataToCSV(startDate, endDate);
+            
+            if (result.success) {
+                const dateInfo = (startDate || endDate) 
+                    ? ` (${startDate || 'start'} to ${endDate || 'present'})` 
+                    : '';
+                showStatusMessage(
+                    `✅ Exported ${result.recordCount} job applications${dateInfo}`,
+                    'success'
+                );
+            } else {
+                showStatusMessage(
+                    `❌ ${result.error}`,
+                    'error'
+                );
+            }
+        } else {
+            showStatusMessage('❌ Please select a role first', 'error');
+        }
+
+        // Reload stats
+        await loadExportStats();
+        
+        // Re-check LinkedIn tabs
+        await checkLinkedInTabs();
+
+    } catch (error) {
+        console.error('❌ Export error:', error);
+        showStatusMessage(`❌ Export error: ${error.message}`, 'error');
+    } finally {
+        // Re-enable button
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = '📊 Export to CSV';
+    }
+}
+
+/**
+ * Load and display export statistics
+ */
+async function loadExportStats() {
+    const statsDiv = document.getElementById('export-stats');
+    if (!statsDiv) return;
+
+    try {
+        const stats = await DataUpload.getDataStats();
+        
+        if (!stats) {
+            statsDiv.innerHTML = '📊 No data available yet';
+            return;
+        }
+
+        const userRole = await getUserRole();
+        
+        let statsHTML = '';
+        if (userRole === 'recruiter') {
+            statsHTML = `
+                <strong>Recruiter Data:</strong><br>
+                • ${stats.recruiter.totalProfiles} LinkedIn profiles saved<br>
+                • ${stats.exports.totalExports} total exports<br>
+                ${stats.exports.lastExport ? `• Last export: ${formatDate(stats.exports.lastExport)}` : ''}
+            `;
+        } else if (userRole === 'talent') {
+            statsHTML = `
+                <strong>Talent Data:</strong><br>
+                • ${stats.talent.totalApplications} job applications tracked<br>
+                • ${stats.talent.submitted} submitted, ${stats.talent.pending} pending<br>
+                • ${stats.exports.totalExports} total exports<br>
+                ${stats.exports.lastExport ? `• Last export: ${formatDate(stats.exports.lastExport)}` : ''}
+            `;
+        } else {
+            statsHTML = '📊 Select a role to see your data statistics';
+        }
+
+        statsDiv.innerHTML = statsHTML;
+
+    } catch (error) {
+        console.error('❌ Error loading stats:', error);
+        statsDiv.innerHTML = '❌ Error loading statistics';
+    }
+}
+
+/**
+ * Show status message
+ */
+function showStatusMessage(message, type = 'info') {
+    const statusMsg = document.getElementById('status-msg');
+    if (!statusMsg) return;
+
+    statusMsg.textContent = message;
+    statusMsg.style.display = 'block';
+    
+    // Set colors based on type
+    if (type === 'success') {
+        statusMsg.style.background = '#d4edda';
+        statusMsg.style.color = '#155724';
+        statusMsg.style.border = '1px solid #c3e6cb';
+    } else if (type === 'error') {
+        statusMsg.style.background = '#f8d7da';
+        statusMsg.style.color = '#721c24';
+        statusMsg.style.border = '1px solid #f5c6cb';
+    } else {
+        statusMsg.style.background = '#d1ecf1';
+        statusMsg.style.color = '#0c5460';
+        statusMsg.style.border = '1px solid #bee5eb';
+    }
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        statusMsg.style.display = 'none';
+    }, 5000);
+}
+
+/**
+ * Format date for display
+ */
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
 }
 
 // Export for use in other scripts
