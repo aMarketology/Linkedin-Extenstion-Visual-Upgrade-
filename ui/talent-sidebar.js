@@ -1091,15 +1091,92 @@
         // Step 3: Analyze each field
         const uniqueFields = new Set();
         inputs.forEach((input, index) => {
-            // Skip hidden fields, buttons, checkboxes, radio buttons
+            // Skip hidden fields, buttons, checkboxes, radio buttons (unless they might be EEO)
             if (input.type === 'hidden' || 
                 input.type === 'button' || 
                 input.type === 'submit' ||
-                input.type === 'checkbox' ||
-                input.type === 'radio' ||
                 input.style.display === 'none' ||
                 input.offsetParent === null) {
                 return;
+            }
+            
+            // Special handling for radio buttons and checkboxes - might be EEO or common questions
+            if (input.type === 'radio' || input.type === 'checkbox') {
+                if (typeof UserPreferences !== 'undefined') {
+                    const label = input.labels?.[0]?.textContent || 
+                                  input.getAttribute('aria-label') || 
+                                  input.parentElement?.textContent || '';
+                    
+                    // Check if it's an EEO question
+                    const eeoType = UserPreferences.detectEEOQuestion(label, input);
+                    if (eeoType) {
+                        // Mark as EEO field for special handling
+                        const fieldKey = `eeo_${eeoType.type}_${index}`;
+                        if (!uniqueFields.has(fieldKey)) {
+                            uniqueFields.add(fieldKey);
+                            detectedFields.push({
+                                element: input,
+                                type: eeoType.type,
+                                label: eeoType.category,
+                                identifier: input.id || input.name || fieldKey,
+                                isEEO: true,
+                                eeoCategory: eeoType.type
+                            });
+                            console.log(`✅ EEO Field ${index + 1}: "${eeoType.category}"`);
+                        }
+                        return;
+                    }
+                    
+                    // Check if it's a common application question
+                    const commonType = UserPreferences.detectCommonQuestion(label, input);
+                    if (commonType) {
+                        const fieldKey = `common_${commonType.type}_${index}`;
+                        if (!uniqueFields.has(fieldKey)) {
+                            uniqueFields.add(fieldKey);
+                            detectedFields.push({
+                                element: input,
+                                type: commonType.type,
+                                label: label.substring(0, 50),
+                                identifier: input.id || input.name || fieldKey,
+                                isCommonQuestion: true,
+                                commonQuestionType: commonType.type,
+                                preferenceKey: commonType.preferenceKey
+                            });
+                            console.log(`✅ Common Question ${index + 1}: "${commonType.type}"`);
+                        }
+                        return;
+                    }
+                }
+                return; // Skip normal processing for radio/checkbox
+            }
+            
+            // Check if this is a common application question (for all input types)
+            if (typeof UserPreferences !== 'undefined') {
+                const label = input.labels?.[0]?.textContent || 
+                              input.getAttribute('aria-label') || 
+                              input.getAttribute('placeholder') || 
+                              input.parentElement?.textContent || 
+                              findLabelText(input) || '';
+                
+                const commonType = UserPreferences.detectCommonQuestion(label, input);
+                if (commonType) {
+                    const fieldKey = `common_${commonType.type}_${index}`;
+                    if (!uniqueFields.has(fieldKey)) {
+                        uniqueFields.add(fieldKey);
+                        detectedFields.push({
+                            element: input,
+                            type: commonType.type,
+                            label: label.substring(0, 100) || commonType.type,
+                            identifier: input.id || input.name || fieldKey,
+                            isCommonQuestion: true,
+                            commonQuestionType: commonType.type,
+                            preferenceKey: commonType.preferenceKey,
+                            fieldType: commonType.fieldType
+                        });
+                        console.log(`✅ Common Question ${index + 1}: "${commonType.type}"`);
+                        return; // Skip normal field analysis
+                    }
+                }
             }
             
             // Try cached mapping first (fast path)
@@ -1645,10 +1722,9 @@
                 case 'state':
                     // Smart state detection: use abbreviation for short fields, full name for longer fields
                     // Check field max length or size to determine format preference
-                    const stateField = fields.find(f => f.id === field.id);
-                    if (stateField) {
-                        const maxLength = stateField.maxLength || 100;
-                        const fieldSize = stateField.size || 50;
+                    if (field.element) {
+                        const maxLength = field.element.maxLength || 100;
+                        const fieldSize = field.element.size || 50;
                         // If field is small (maxLength <= 3 or size <= 10), use abbreviation
                         if (maxLength <= 3 || fieldSize <= 10) {
                             value = USER_PROFILE.state; // Abbreviation
@@ -1741,6 +1817,76 @@
                         fieldsList.appendChild(fieldItem);
                     }
                     value = null; // Skip normal processing
+                    break;
+                default:
+                    // Check if it's a common application question
+                    if (field.isCommonQuestion && typeof UserPreferences !== 'undefined') {
+                        UserPreferences.getCommonQuestionPreference(field.preferenceKey).then(savedValue => {
+                            if (savedValue) {
+                                // Auto-fill based on field type
+                                if (field.fieldType === 'select' && field.element.tagName === 'SELECT') {
+                                    // For select dropdowns, find matching option
+                                    const options = field.element.options;
+                                    for (let i = 0; i < options.length; i++) {
+                                        const optionText = options[i].textContent.toLowerCase();
+                                        const optionValue = options[i].value.toLowerCase();
+                                        if (optionText.includes(savedValue.toLowerCase()) || 
+                                            optionValue === savedValue.toLowerCase()) {
+                                            field.element.selectedIndex = i;
+                                            field.element.dispatchEvent(new Event('change', { bubbles: true }));
+                                            filledCount++;
+                                            break;
+                                        }
+                                    }
+                                } else if (field.element.type === 'radio') {
+                                    // For radio buttons, find matching radio in group
+                                    const name = field.element.name;
+                                    const radioButtons = window.parent.document.querySelectorAll(`input[type="radio"][name="${name}"]`);
+                                    for (const radio of radioButtons) {
+                                        const label = radio.labels?.[0]?.textContent.toLowerCase() || 
+                                                      radio.getAttribute('aria-label')?.toLowerCase() || '';
+                                        if (label.includes(savedValue.toLowerCase())) {
+                                            radio.checked = true;
+                                            radio.dispatchEvent(new Event('change', { bubbles: true }));
+                                            filledCount++;
+                                            break;
+                                        }
+                                    }
+                                } else if (field.fieldType === 'date' || field.element.type === 'date') {
+                                    // For date fields
+                                    field.element.value = savedValue;
+                                    field.element.dispatchEvent(new Event('change', { bubbles: true }));
+                                    filledCount++;
+                                } else {
+                                    // For text fields
+                                    field.element.value = savedValue;
+                                    field.element.dispatchEvent(new Event('input', { bubbles: true }));
+                                    filledCount++;
+                                }
+                                
+                                // Add to fields list
+                                const fieldItem = document.createElement('div');
+                                fieldItem.className = 'field-item';
+                                fieldItem.innerHTML = '<span class="field-label">' + field.label + ':</span><span>Auto-filled</span><span class="field-status">' + String.fromCharCode(9989) + '</span>';
+                                fieldsList.appendChild(fieldItem);
+                            }
+                        });
+                        value = null; // Skip normal processing
+                    }
+                    // Check if it's an EEO field
+                    else if (field.isEEO && typeof UserPreferences !== 'undefined') {
+                        // Auto-fill EEO field with user preferences
+                        UserPreferences.autoFillEEOField(field.element, field.eeoCategory).then(success => {
+                            if (success) {
+                                filledCount++;
+                                const fieldItem = document.createElement('div');
+                                fieldItem.className = 'field-item';
+                                fieldItem.innerHTML = '<span class="field-label">EEO - ' + field.label + ':</span><span>Auto-filled</span><span class="field-status">' + String.fromCharCode(9989) + '</span>';
+                                fieldsList.appendChild(fieldItem);
+                            }
+                        });
+                        value = null; // Skip normal processing
+                    }
                     break;
             }
 
@@ -1956,7 +2102,37 @@
             `;
         }
         
+        // Show Smart Responses button
+        const smartResponsesBtn = document.getElementById('toggleSmartResponses');
+        if (smartResponsesBtn) {
+            smartResponsesBtn.style.display = 'flex';
+        }
+        
         console.log('📝 Displayed application questions in UI');
+    }
+    
+    /**
+     * Show Smart Responses for detected questions
+     */
+    function showSmartResponsesForQuestions() {
+        const container = document.getElementById('smartResponsesContainer');
+        if (!container || !jobDetails.questions || jobDetails.questions.length === 0) return;
+        
+        container.innerHTML = '<div style="padding: 16px; background: white; border-radius: 12px;"><h3 style="color: #667eea; margin: 0 0 16px 0;">✨ Smart Response Helper</h3></div>';
+        
+        // Show first few questions with smart responses
+        const questionsToShow = jobDetails.questions.slice(0, 5);
+        
+        questionsToShow.forEach((question, index) => {
+            if (typeof SmartResponses !== 'undefined') {
+                const questionDiv = document.createElement('div');
+                questionDiv.id = `smart-response-${index}`;
+                questionDiv.style.marginBottom = '16px';
+                container.appendChild(questionDiv);
+                
+                SmartResponses.createResponseHelperUI(question, USER_PROFILE, `smart-response-${index}`);
+            }
+        });
     }
 
     // Display detected fields
@@ -1973,6 +2149,42 @@
     function setupEventListeners() {
         const autoFillBtn = document.getElementById('autoFillBtn');
         autoFillBtn.addEventListener('click', autoFillFields);
+        
+        // EEO Preferences toggle
+        const preferencesBtn = document.getElementById('togglePreferences');
+        if (preferencesBtn) {
+            preferencesBtn.addEventListener('click', () => {
+                const container = document.getElementById('preferencesContainer');
+                if (container.style.display === 'none') {
+                    container.style.display = 'block';
+                    if (typeof UserPreferences !== 'undefined') {
+                        UserPreferences.createPreferencesUI('preferencesContainer');
+                    }
+                    preferencesBtn.textContent = '✓ Preferences';
+                } else {
+                    container.style.display = 'none';
+                    preferencesBtn.innerHTML = '<span>⚙️</span><span>EEO Preferences</span>';
+                }
+            });
+        }
+        
+        // Smart Responses toggle
+        const smartResponsesBtn = document.getElementById('toggleSmartResponses');
+        if (smartResponsesBtn) {
+            smartResponsesBtn.addEventListener('click', () => {
+                const container = document.getElementById('smartResponsesContainer');
+                if (container.style.display === 'none') {
+                    container.style.display = 'block';
+                    if (typeof SmartResponses !== 'undefined' && jobDetails.questions) {
+                        showSmartResponsesForQuestions();
+                    }
+                    smartResponsesBtn.textContent = '✓ Response Helper Active';
+                } else {
+                    container.style.display = 'none';
+                    smartResponsesBtn.innerHTML = '<span>✨</span><span>Smart Response Helper</span>';
+                }
+            });
+        }
         
         // Refresh fields button
         const refreshBtn = document.getElementById('refreshFieldsBtn');
