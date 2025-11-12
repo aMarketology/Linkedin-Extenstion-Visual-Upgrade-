@@ -24,7 +24,16 @@ const DataUpload = (function() {
     async function getRecruiterProfiles() {
         try {
             const result = await chrome.storage.local.get([STORAGE_KEYS.RECRUITER_PROFILES]);
-            return result[STORAGE_KEYS.RECRUITER_PROFILES] || [];
+            const profiles = result[STORAGE_KEYS.RECRUITER_PROFILES];
+            
+            // Ensure we return an array
+            if (!profiles) return [];
+            if (Array.isArray(profiles)) return profiles;
+            
+            // If it's a single object, wrap in array
+            if (typeof profiles === 'object') return [profiles];
+            
+            return [];
         } catch (error) {
             console.error('❌ Error loading recruiter profiles:', error);
             return [];
@@ -195,7 +204,16 @@ const DataUpload = (function() {
     async function getTalentApplications() {
         try {
             const result = await chrome.storage.local.get([STORAGE_KEYS.TALENT_APPLICATIONS]);
-            return result[STORAGE_KEYS.TALENT_APPLICATIONS] || [];
+            const applications = result[STORAGE_KEYS.TALENT_APPLICATIONS];
+            
+            // Ensure we return an array
+            if (!applications) return [];
+            if (Array.isArray(applications)) return applications;
+            
+            // If it's a single object, wrap in array
+            if (typeof applications === 'object') return [applications];
+            
+            return [];
         } catch (error) {
             console.error('❌ Error loading talent applications:', error);
             return [];
@@ -563,25 +581,45 @@ const DataUpload = (function() {
             const applications = await getTalentApplications();
             const history = await getExportHistory();
 
+            // Ensure arrays - handle cases where data might be malformed
+            const profilesArray = Array.isArray(profiles) ? profiles : [];
+            const applicationsArray = Array.isArray(applications) ? applications : [];
+            const historyArray = Array.isArray(history) ? history : [];
+
             return {
                 recruiter: {
-                    totalProfiles: profiles.length,
-                    lastSaved: profiles[0]?.savedDate || null
+                    totalProfiles: profilesArray.length,
+                    lastSaved: profilesArray[0]?.savedDate || null
                 },
                 talent: {
-                    totalApplications: applications.length,
-                    submitted: applications.filter(app => app.submitted).length,
-                    pending: applications.filter(app => !app.submitted).length,
-                    lastSaved: applications[0]?.savedDate || null
+                    totalApplications: applicationsArray.length,
+                    submitted: applicationsArray.filter(app => app && app.submitted).length,
+                    pending: applicationsArray.filter(app => app && !app.submitted).length,
+                    lastSaved: applicationsArray[0]?.savedDate || null
                 },
                 exports: {
-                    totalExports: history.length,
-                    lastExport: history[0]?.timestamp || null
+                    totalExports: historyArray.length,
+                    lastExport: historyArray[0]?.timestamp || null
                 }
             };
         } catch (error) {
             console.error('❌ Error getting data stats:', error);
-            return null;
+            return {
+                recruiter: {
+                    totalProfiles: 0,
+                    lastSaved: null
+                },
+                talent: {
+                    totalApplications: 0,
+                    submitted: 0,
+                    pending: 0,
+                    lastSaved: null
+                },
+                exports: {
+                    totalExports: 0,
+                    lastExport: null
+                }
+            };
         }
     }
 
