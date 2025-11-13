@@ -245,6 +245,86 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
 // ============================================================================
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    
+    // Enable side panel for job application page
+    if (request.action === 'openSidePanel') {
+        if (sender.tab?.id) {
+            const tabId = sender.tab.id;
+            const windowId = sender.tab.windowId;
+            
+            // Enable side panel for this tab and window
+            chrome.sidePanel.setOptions({
+                tabId: tabId,
+                path: 'ui/talent-sidebar.html',
+                enabled: true
+            }).then(() => {
+                console.log('✅ Side panel enabled for tab:', tabId, 'window:', windowId);
+                // Show a badge to indicate panel is available
+                chrome.action.setBadgeText({ text: '✓', tabId: tabId });
+                chrome.action.setBadgeBackgroundColor({ color: '#4CAF50', tabId: tabId });
+                
+                // Try to open the side panel automatically (try window first, then tab)
+                chrome.sidePanel.open({ windowId: windowId })
+                    .then(() => {
+                        console.log('✅ Side panel auto-opened for job application (window)');
+                        sendResponse({ success: true, opened: true });
+                    })
+                    .catch((error) => {
+                        console.log('ℹ️ Window open failed, trying tab:', error.message);
+                        // Fallback to tab-based opening
+                        chrome.sidePanel.open({ tabId: tabId })
+                            .then(() => {
+                                console.log('✅ Side panel auto-opened (tab fallback)');
+                                sendResponse({ success: true, opened: true });
+                            })
+                            .catch((err) => {
+                                console.log('ℹ️ Side panel enabled but not auto-opened:', err.message);
+                                sendResponse({ success: true, opened: false });
+                            });
+                    });
+            }).catch((error) => {
+                console.error('❌ Error enabling side panel:', error);
+                sendResponse({ success: false, error: error.message });
+            });
+        }
+        return true; // Keep channel open for async response
+    }
+    
+    // Force open side panel (from notification button)
+    if (request.action === 'forceOpenSidePanel') {
+        // Get the window ID from the sender tab or find the active window
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs && tabs.length > 0) {
+                const windowId = tabs[0].windowId;
+                chrome.sidePanel.open({ windowId: windowId })
+                    .then(() => {
+                        console.log('✅ Side panel force-opened in window:', windowId);
+                        sendResponse({ success: true });
+                    })
+                    .catch((error) => {
+                        console.error('❌ Error force-opening side panel:', error);
+                        // Try with tab ID as fallback
+                        if (sender.tab?.id) {
+                            chrome.sidePanel.open({ tabId: sender.tab.id })
+                                .then(() => {
+                                    console.log('✅ Side panel opened via tab fallback');
+                                    sendResponse({ success: true });
+                                })
+                                .catch((err) => {
+                                    console.error('❌ Fallback also failed:', err);
+                                    sendResponse({ success: false, error: err.message });
+                                });
+                        } else {
+                            sendResponse({ success: false, error: error.message });
+                        }
+                    });
+            } else {
+                sendResponse({ success: false, error: 'No active tab found' });
+            }
+        });
+        return true; // Keep channel open for async response
+    }
+    
     // Save profile to cache
     if (request.action === 'saveProfile') {
         DataSend.saveProfileToCache(request.data)
@@ -350,5 +430,28 @@ chrome.runtime.onInstalled.addListener((details) => {
     } else if (details.reason === 'update') {
         const version = chrome.runtime.getManifest().version;
         console.log('🔄 Unnanu Extension updated to version', version);
+    }
+});
+
+// ============================================================================
+// ACTION CLICK HANDLER (Extension Icon)
+// ============================================================================
+
+chrome.action.onClicked.addListener(async (tab) => {
+    // When user clicks extension icon, open side panel
+    try {
+        // Get the window ID from the current tab
+        const windowId = tab.windowId;
+        await chrome.sidePanel.open({ windowId: windowId });
+        console.log('✅ Side panel opened via icon click in window:', windowId);
+    } catch (error) {
+        console.error('❌ Error opening side panel:', error);
+        // Try with tab ID as fallback
+        try {
+            await chrome.sidePanel.open({ tabId: tab.id });
+            console.log('✅ Side panel opened via tab fallback');
+        } catch (err) {
+            console.error('❌ Both methods failed:', err);
+        }
     }
 });

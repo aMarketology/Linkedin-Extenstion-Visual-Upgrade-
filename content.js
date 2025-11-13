@@ -263,19 +263,319 @@ function initializeTalentMode() {
     
     // Check if this looks like a job application page
     if (isJobApplicationPage()) {
-        console.log('✅ Job application page detected!');
-        // Create floating icon for talent mode (works on any page)
-        createJobHelperIcon();
-        console.log('✅ Talent helper icon created!');
+        console.log('✅ Job application page detected! Enabling sidebar...');
+        
+        // Enable the side panel for this tab (doesn't auto-open, just makes it available)
+        chrome.runtime.sendMessage({
+            action: 'openSidePanel'
+        }, (response) => {
+            if (response && response.success) {
+                console.log('✅ Side panel enabled');
+                // Show a subtle notification
+                showJobDetectedNotification();
+                // Create floating toggle button
+                createFloatingToggleButton();
+            }
+        });
         
         // Watch for modal/overlay creation and maintain z-index
         setupModalWatcher();
     } else {
-        console.log('ℹ️ Not a job application page, but icon will be created anyway for manual use');
-        // Still create icon - user might navigate to application form
-        createJobHelperIcon();
+        console.log('ℹ️ Not a job application page. User can manually open sidebar from extension menu.');
+        // Still show floating button for manual access
+        createFloatingToggleButton();
         setupModalWatcher();
     }
+}
+
+/**
+ * Show a notification that a job application was detected
+ */
+function showJobDetectedNotification() {
+    // Remove any existing notification
+    const existingNotification = document.getElementById('unnanu-job-notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    const notification = document.createElement('div');
+    notification.id = 'unnanu-job-notification';
+    notification.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 32px;">🎯</span>
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; margin-bottom: 4px; font-size: 16px;">Job Application Detected!</div>
+                    <div style="font-size: 13px; opacity: 0.95;">Ready to auto-fill your application</div>
+                </div>
+                <button id="unnanu-close-notification" style="
+                    background: none;
+                    border: none;
+                    color: white;
+                    font-size: 28px;
+                    cursor: pointer;
+                    padding: 0;
+                    opacity: 0.7;
+                    transition: opacity 0.2s;
+                    width: 28px;
+                    height: 28px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    line-height: 1;
+                ">×</button>
+            </div>
+            <button id="unnanu-open-sidebar-btn" style="
+                background: white;
+                color: #667eea;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 10px;
+                font-weight: 700;
+                cursor: pointer;
+                font-size: 15px;
+                transition: all 0.2s;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                width: 100%;
+                text-align: center;
+            ">Open Auto-Fill Sidebar →</button>
+        </div>
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
+        z-index: 2147483647;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 14px;
+        min-width: 320px;
+        max-width: 380px;
+        animation: slideInFromRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        cursor: default;
+    `;
+    
+    // Add animation and styles
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideInFromRight {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideOutToRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.02);
+            }
+        }
+        #unnanu-close-notification:hover {
+            opacity: 1 !important;
+            transform: scale(1.1);
+        }
+        #unnanu-open-sidebar-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.25) !important;
+            background: #f0f0f0 !important;
+        }
+        #unnanu-open-sidebar-btn:active {
+            transform: translateY(0);
+        }
+        #unnanu-job-notification {
+            animation: slideInFromRight 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), pulse 2s ease-in-out 1.5s 3 !important;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(notification);
+    
+    // Open sidebar button handler
+    const openBtn = document.getElementById('unnanu-open-sidebar-btn');
+    openBtn.addEventListener('click', () => {
+        console.log('🎯 User clicked "Open Auto-Fill Sidebar" button');
+        
+        // Change button state to loading
+        openBtn.disabled = true;
+        openBtn.innerHTML = '⏳ Opening Sidebar...';
+        openBtn.style.opacity = '0.7';
+        
+        // Send message to background to open sidebar
+        chrome.runtime.sendMessage({ 
+            action: 'forceOpenSidePanel'
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('❌ Error:', chrome.runtime.lastError.message);
+                showOpenFailure(openBtn, notification);
+                return;
+            }
+            
+            if (response && response.success) {
+                console.log('✅ Side panel opened successfully');
+                // Success - hide notification
+                notification.style.animation = 'slideOutToRight 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            } else {
+                console.warn('⚠️ Could not auto-open sidebar');
+                showOpenFailure(openBtn, notification);
+            }
+        });
+    });
+    
+    function showOpenFailure(btn, notif) {
+        btn.disabled = false;
+        btn.innerHTML = '⚠️ Click the extension icon (top-right) →';
+        btn.style.background = '#ffd700';
+        btn.style.color = '#333';
+        btn.style.opacity = '1';
+        btn.style.fontSize = '13px';
+        btn.style.padding = '12px 16px';
+        
+        // Keep notification visible longer
+        setTimeout(() => {
+            if (document.getElementById('unnanu-job-notification')) {
+                notif.style.animation = 'slideOutToRight 0.3s ease-out';
+                setTimeout(() => notif.remove(), 300);
+            }
+        }, 30000); // 30 seconds instead of 20
+    }
+    
+    // Close button handler
+    document.getElementById('unnanu-close-notification').addEventListener('click', () => {
+        notification.style.animation = 'slideOutToRight 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    });
+    
+    // Auto-hide after 20 seconds
+    setTimeout(() => {
+        if (document.getElementById('unnanu-job-notification')) {
+            notification.style.animation = 'slideOutToRight 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 20000);
+}
+
+/**
+ * Create floating sidebar toggle button with Unnanu logo (horizontal orientation)
+ */
+function createFloatingToggleButton() {
+    // Remove existing button if present
+    const existingButton = document.getElementById('unnanu-floating-toggle');
+    if (existingButton) {
+        existingButton.remove();
+    }
+    
+    const toggleButton = document.createElement('div');
+    toggleButton.id = 'unnanu-floating-toggle';
+    
+    // Get the logo URL with proper encoding
+    const logoUrl = chrome.runtime.getURL('images/unnanu-logo.png');
+    
+    toggleButton.innerHTML = `
+        <img src="${logoUrl}" 
+             alt="Unnanu Assistant" 
+             style="width: 100%; height: 100%; object-fit: contain; pointer-events: none; opacity: 0.9; transform: rotate(270deg);" />
+    `;
+    toggleButton.style.cssText = `
+        position: fixed;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+        width: 144px;
+        height: 60px;
+        background: none;
+        cursor: pointer;
+        z-index: 2147483646;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        margin: 0;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow: visible;
+    `;
+    
+    // Add hover effect styles
+    const style = document.createElement('style');
+    style.id = 'unnanu-toggle-styles';
+    style.textContent = `
+        #unnanu-floating-toggle:hover {
+            transform: translateY(-50%) scale(1.05);
+        }
+        #unnanu-floating-toggle:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+        @keyframes slideInFromRightToggle {
+            from {
+                transform: translateY(-50%) translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(-50%) translateX(0);
+                opacity: 1;
+            }
+        }
+        #unnanu-floating-toggle {
+            animation: slideInFromRightToggle 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+    `;
+    
+    // Remove old style if exists
+    const oldStyle = document.getElementById('unnanu-toggle-styles');
+    if (oldStyle) oldStyle.remove();
+    
+    document.head.appendChild(style);
+    
+    // Click handler to toggle sidebar
+    toggleButton.addEventListener('click', () => {
+        console.log('🎯 Floating toggle button clicked');
+        
+        // Add click animation
+        toggleButton.style.transform = 'translateY(-50%) scale(0.9)';
+        setTimeout(() => {
+            toggleButton.style.transform = 'translateY(-50%) scale(1)';
+        }, 100);
+        
+        // Send message to background to toggle sidebar
+        chrome.runtime.sendMessage({ 
+            action: 'forceOpenSidePanel'
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('❌ Error:', chrome.runtime.lastError.message);
+                // Show brief error notification
+                showBriefNotification('⚠️ Please click the extension icon to open sidebar');
+                return;
+            }
+            
+            if (response && response.success) {
+                console.log('✅ Side panel toggled via floating button');
+            }
+        });
+    });
+    
+    document.body.appendChild(toggleButton);
+    console.log('✅ Floating toggle button created');
 }
 
 /**
@@ -1203,22 +1503,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'toggleSidebar') {
         toggleSidebar();
         sendResponse({ success: true });
+        return false;
     }
     
     if (request.action === 'roleSelected') {
         console.log('✅ Role selected:', request.role);
         userRole = request.role;
-        
+        sendResponse({ success: true });
         // Reload to apply new role
-        location.reload();
+        setTimeout(() => location.reload(), 100);
+        return false;
     }
     
     if (request.action === 'analyzePageForJob') {
         const analysis = analyzePageForJobApplication();
         sendResponse(analysis);
+        return false;
     }
     
-    return true;
+    // Handle requests from sidebar for page data
+    if (request.action === 'getPageData') {
+        const pageData = scrapeJobPageData();
+        sendResponse({ success: true, data: pageData });
+        return false;
+    }
+    
+    // Handle requests from sidebar for form fields
+    if (request.action === 'getFormFields') {
+        const fields = scrapeFormFields();
+        sendResponse({ success: true, fields: fields });
+        return false;
+    }
+    
+    // Handle auto-fill request from sidebar
+    if (request.action === 'fillField') {
+        const success = fillFieldOnPage(request.fieldIdentifier, request.value);
+        sendResponse({ success: success });
+        return false;
+    }
+    
+    return false; // Don't keep channel open
 });
 
 // ============================================================================
@@ -1288,6 +1612,146 @@ function scrapeJobPageData() {
     return data;
 }
 
+function scrapeFormFields() {
+    console.log('🔍 Scanning form fields from content script...');
+    
+    const fields = [];
+    
+    // Extended selector to catch Lever, Greenhouse, Workday custom fields
+    const inputs = document.querySelectorAll(`
+        input[type="text"], 
+        input[type="email"], 
+        input[type="tel"], 
+        input[type="url"], 
+        input[type="number"],
+        input[type="file"],
+        input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="image"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]), 
+        textarea, 
+        select,
+        [role="textbox"],
+        [contenteditable="true"],
+        input[class*="input"],
+        input[class*="field"],
+        textarea[class*="input"],
+        textarea[class*="field"]
+    `);
+    
+    console.log(`📊 Found ${inputs.length} total potential fields`);
+    
+    inputs.forEach((input, index) => {
+        // Skip hidden fields
+        if (input.type === 'hidden' || 
+            input.style.display === 'none' || 
+            input.style.visibility === 'hidden' ||
+            input.offsetParent === null ||
+            input.getAttribute('aria-hidden') === 'true') {
+            return;
+        }
+        
+        // Find label - try multiple methods
+        let label = '';
+        
+        // Method 1: label[for] attribute
+        if (input.id) {
+            const labelEl = document.querySelector(`label[for="${input.id}"]`);
+            if (labelEl) label = labelEl.textContent.trim();
+        }
+        
+        // Method 2: input.labels
+        if (!label && input.labels && input.labels.length > 0) {
+            label = input.labels[0].textContent.trim();
+        }
+        
+        // Method 3: parent label
+        if (!label) {
+            const parentLabel = input.closest('label');
+            if (parentLabel) label = parentLabel.textContent.trim();
+        }
+        
+        // Method 4: previous sibling label
+        if (!label && input.previousElementSibling?.tagName === 'LABEL') {
+            label = input.previousElementSibling.textContent.trim();
+        }
+        
+        // Method 5: Look for label in parent container (common in Lever/Greenhouse)
+        if (!label) {
+            const parent = input.closest('.field, .form-field, .application-question, [class*="field"], [class*="question"]');
+            if (parent) {
+                const labelInParent = parent.querySelector('label, .label, [class*="label"], legend');
+                if (labelInParent) label = labelInParent.textContent.trim();
+            }
+        }
+        
+        // Method 6: Look for preceding text/heading (Lever pattern)
+        if (!label) {
+            const container = input.closest('div');
+            if (container) {
+                const heading = container.querySelector('h3, h4, .heading, [class*="heading"]');
+                if (heading) label = heading.textContent.trim();
+            }
+        }
+        
+        // Method 7: aria-label
+        if (!label) {
+            label = input.getAttribute('aria-label') || '';
+        }
+        
+        // Method 8: aria-labelledby
+        if (!label) {
+            const labelledBy = input.getAttribute('aria-labelledby');
+            if (labelledBy) {
+                const labelEl = document.getElementById(labelledBy);
+                if (labelEl) label = labelEl.textContent.trim();
+            }
+        }
+        
+        // Method 9: data-label or data-field-name attributes
+        if (!label) {
+            label = input.getAttribute('data-label') || 
+                    input.getAttribute('data-field-name') || 
+                    input.getAttribute('data-qa') || '';
+        }
+        
+        // Method 10: placeholder as fallback
+        if (!label) {
+            label = input.placeholder || '';
+        }
+        
+        // Method 11: name attribute cleaned up
+        if (!label) {
+            label = input.name ? input.name.replace(/[_-]/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2') : '';
+        }
+        
+        // Clean up label (remove asterisks, extra whitespace)
+        label = label.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+        
+        const fieldData = {
+            id: input.id || '',
+            name: input.name || '',
+            type: input.type || input.tagName.toLowerCase(),
+            placeholder: input.placeholder || '',
+            label: label,
+            className: input.className || '',
+            value: input.value || '',
+            tagName: input.tagName.toLowerCase(),
+            required: input.required || input.getAttribute('aria-required') === 'true' || label.includes('*')
+        };
+        
+        fields.push(fieldData);
+        
+        console.log(`Field ${index + 1}:`, {
+            label: label || '(no label)',
+            id: input.id || '(no id)',
+            name: input.name || '(no name)',
+            type: input.type || input.tagName,
+            required: fieldData.required
+        });
+    });
+    
+    console.log(`✅ Found ${fields.length} form fields with labels/info`);
+    return fields;
+}
+
 function scanFormFields() {
     console.log('🔍 Scanning form fields from content script...');
     
@@ -1340,28 +1804,114 @@ function scanFormFields() {
 }
 
 function fillFieldOnPage(identifier, value) {
-    console.log(`✏️ Filling field: ${identifier} = ${value}`);
+    console.log(`✏️ Filling field: "${identifier}" = "${value}"`);
     
-    // Try to find the field by id, name, or other attributes
-    let field = document.getElementById(identifier) ||
-                document.querySelector(`[name="${identifier}"]`) ||
-                document.querySelector(`input[placeholder*="${identifier}"]`);
+    // Try multiple methods to find the field
+    let field = null;
+    
+    // Method 1: By ID
+    if (identifier) {
+        field = document.getElementById(identifier);
+    }
+    
+    // Method 2: By name attribute
+    if (!field && identifier) {
+        field = document.querySelector(`[name="${identifier}"]`);
+    }
+    
+    // Method 3: By name attribute (case insensitive)
+    if (!field && identifier) {
+        const allInputs = document.querySelectorAll('input, textarea, select');
+        for (const input of allInputs) {
+            if (input.name && input.name.toLowerCase() === identifier.toLowerCase()) {
+                field = input;
+                break;
+            }
+        }
+    }
+    
+    // Method 4: By placeholder
+    if (!field && identifier) {
+        field = document.querySelector(`input[placeholder*="${identifier}"], textarea[placeholder*="${identifier}"]`);
+    }
+    
+    // Method 5: By label text
+    if (!field && identifier) {
+        const labels = document.querySelectorAll('label');
+        for (const label of labels) {
+            if (label.textContent.toLowerCase().includes(identifier.toLowerCase())) {
+                const forAttr = label.getAttribute('for');
+                if (forAttr) {
+                    field = document.getElementById(forAttr);
+                    if (field) break;
+                }
+                // Check for nested input
+                const nestedInput = label.querySelector('input, textarea, select');
+                if (nestedInput) {
+                    field = nestedInput;
+                    break;
+                }
+            }
+        }
+    }
     
     if (field) {
-        field.value = value;
+        console.log('✅ Found field:', field.tagName, field.type, field.name || field.id);
+        
+        // Fill the field based on type
+        if (field.tagName === 'SELECT') {
+            // For dropdowns, try to find matching option
+            const options = field.options;
+            let matched = false;
+            for (let i = 0; i < options.length; i++) {
+                const optionText = options[i].textContent.trim().toLowerCase();
+                const optionValue = options[i].value.toLowerCase();
+                if (optionText === value.toLowerCase() || 
+                    optionValue === value.toLowerCase() ||
+                    optionText.includes(value.toLowerCase()) ||
+                    value.toLowerCase().includes(optionText)) {
+                    field.selectedIndex = i;
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched && field.options.length > 0) {
+                // If no match, just set first non-empty option
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value) {
+                        field.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        } else {
+            // For text inputs, textareas, etc.
+            field.value = value;
+        }
+        
+        // Trigger events to notify the page
         field.dispatchEvent(new Event('input', { bubbles: true }));
         field.dispatchEvent(new Event('change', { bubbles: true }));
         field.dispatchEvent(new Event('blur', { bubbles: true }));
         
+        // For React/Vue apps
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        if (nativeInputValueSetter) {
+            nativeInputValueSetter.call(field, value);
+        }
+        
         // Visual feedback
+        const originalBg = field.style.backgroundColor;
         field.style.backgroundColor = '#d4edda';
         setTimeout(() => {
-            field.style.backgroundColor = '';
+            field.style.backgroundColor = originalBg;
         }, 2000);
         
+        console.log('✅ Field filled successfully');
         return true;
     }
     
+    console.warn('⚠️ Could not find field:', identifier);
     return false;
 }
 

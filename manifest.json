@@ -6,7 +6,8 @@
     "permissions": [
         "activeTab",
         "storage",
-        "tabs"
+        "tabs",
+        "sidePanel"
     ],
     "host_permissions": [
         "*://*.linkedin.com/*",
@@ -36,14 +37,14 @@
         "128": "images/icon-2.png"
     },
     "action": {
-        "default_popup": "popup.html",
         "default_title": "Unnanu - Recruiter & Talent Assistant",
         "default_icon": {
             "16": "images/icon-2.png",
             "32": "images/icon-2.png",
             "48": "images/icon-2.png",
             "128": "images/icon-2.png"
-        }
+        },
+        "default_popup": "popup.html"
     },
     "background": {
         "service_worker": "background.js"
@@ -78,12 +79,17 @@
             "run_at": "document_idle"
         }
     ],
+    "side_panel": {
+        "default_path": "ui/talent-sidebar.html"
+    },
     "web_accessible_resources": [{
         "resources": [
             "ui/sidebar.html",
             "ui/sidebar.css",
             "ui/talent-sidebar.html",
-            "ui/talent-sidebar.js"
+            "ui/talent-sidebar.js",
+            "images/unnanu-logo.png",
+            "images/icon-2.png"
         ],
         "matches": [
             "*://*.linkedin.com/*",

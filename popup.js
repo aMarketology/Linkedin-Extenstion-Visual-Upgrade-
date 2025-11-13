@@ -92,7 +92,6 @@ async function showTalentDashboard() {
         <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #667eea;">
             <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Current Page:</div>
             <div style="font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px;" id="page-analysis">Analyzing...</div>
-            <div style="font-size: 12px; color: #666;" id="page-url">${currentTab?.url || 'Unknown'}</div>
         </div>
         
         <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #28a745;">
@@ -128,9 +127,13 @@ async function showTalentDashboard() {
     try {
         const response = await chrome.tabs.sendMessage(currentTab.id, { action: 'analyzePageForJob' });
         if (response?.isJobPage) {
+            const jobTitleDisplay = response.jobTitle ? 
+                `<div style="font-size: 12px; color: #667eea; margin-top: 4px; font-weight: 500;">📋 ${response.jobTitle.substring(0, 60)}${response.jobTitle.length > 60 ? '...' : ''}</div>` : 
+                '';
             document.getElementById('page-analysis').innerHTML = `
-                <div style="color: #28a745;">✓ Job Application Page Detected</div>
-                ${response.jobTitle ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">${response.jobTitle}</div>` : ''}
+                <div style="color: #28a745; font-size: 13px;">✓ Job Application Detected</div>
+                ${jobTitleDisplay}
+                <div style="font-size: 11px; color: #999; margin-top: 4px;">${response.formFieldCount} form fields found</div>
             `;
         } else {
             document.getElementById('page-analysis').innerHTML = `
@@ -316,6 +319,12 @@ function initializeEventListeners() {
         goToLinkedInBtn.addEventListener('click', openLinkedIn);
     }
 
+    // Open Sidebar button
+    const openSidebarBtn = document.getElementById('open-sidebar-btn');
+    if (openSidebarBtn) {
+        openSidebarBtn.addEventListener('click', handleOpenSidebar);
+    }
+
     // Change role button
     const changeRoleBtn = document.getElementById('change-role-btn');
     if (changeRoleBtn) {
@@ -346,6 +355,32 @@ function initializeEventListeners() {
     // Load export stats and check LinkedIn tabs
     loadExportStats();
     checkLinkedInTabs();
+}
+
+// ============================================================================
+// SIDEBAR MANAGEMENT
+// ============================================================================
+
+async function handleOpenSidebar() {
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0]) {
+            // Try windowId first (works better with popup windows)
+            try {
+                await chrome.sidePanel.open({ windowId: tabs[0].windowId });
+                console.log('✅ Side panel opened via windowId');
+            } catch (err) {
+                // Fallback to tabId
+                await chrome.sidePanel.open({ tabId: tabs[0].id });
+                console.log('✅ Side panel opened via tabId fallback');
+            }
+            // Close the popup after opening sidebar
+            window.close();
+        }
+    } catch (error) {
+        console.error('❌ Error opening sidebar:', error);
+        alert('Could not open sidebar. Please try again.');
+    }
 }
 
 // ============================================================================

@@ -2,6 +2,20 @@
 (function() {
     'use strict';
 
+    // ============================================================================
+    // DEFAULT USER PROFILE TEMPLATE
+    // ============================================================================
+    // This is the default profile for ALL NEW USERS using the platform
+    // Key Defaults:
+    // - Authorized to work in United States (no sponsorship needed)
+    // - All demographic fields default to "Prefer not to answer" for privacy
+    // - Personal info fields are empty until user uploads resume or manually edits
+    // - This profile will be overridden when:
+    //   1. User logs in (future feature)
+    //   2. User uploads their resume
+    //   3. User manually edits any field
+    // ============================================================================
+
     // Cache for field mappings by domain
     const FIELD_CACHE_KEY = 'unnanu_field_mappings';
     const JOB_CACHE_KEY = 'unnanu_job_applications';
@@ -38,30 +52,31 @@
         'Wisconsin': 'WI', 'Wyoming': 'WY', 'District of Columbia': 'DC'
     };
 
-    // User's profile data
+    // User's profile data - DEFAULT TEMPLATE FOR NEW USERS
+    // This will be overridden when user logs in or uploads their resume
     const USER_PROFILE = {
-        firstName: 'Maximillion',
-        lastName: 'Deleonardis',
-        fullName: 'Maximillion Deleonardis',
+        firstName: '',
+        lastName: '',
+        fullName: '',
         preferredName: '',
-        email: 'max@unnanu.ai',
-        phone: '(575) 495-0323',
-        phoneRaw: '5754950323',
-        phoneFormatted: '(575) 495-0323',
+        email: '',
+        phone: '',
+        phoneRaw: '',
+        phoneFormatted: '',
         phoneCountryCode: '+1',
-        address1: '4308 Canoas Drive',
+        address1: '',
         address2: '',
-        city: 'Austin',
-        state: 'TX',
-        stateFull: 'Texas',
-        zipCode: '78730',
-        postalCode: '78730',
+        city: '',
+        state: '',
+        stateFull: '',
+        zipCode: '',
+        postalCode: '',
         country: 'United States',
         county: 'United States',
         linkedInUrl: 'https://www.linkedin.com/in/max-deleonardis-341a01350/',
         githubUrl: '',
-        websiteUrl: '',
-        resumeFileName: '2025-MaxDe-SEOServiceMaxResume.pdf',
+        websiteUrl: 'https://unnanu.ai',
+        resumeFileName: '',
         phoneDeviceType: 'Personal',
         // Extended fields from resume
         skills: [],
@@ -70,11 +85,42 @@
         certifications: [],
         languages: [],
         summary: '',
-        yearsOfExperience: 0,
+        yearsOfExperience: 3,
         currentJobTitle: '',
         currentCompany: '',
         degreeLevel: '',
-        school: ''
+        school: '',
+        // Common Application Question Preferences - DEFAULTS FOR ALL USERS
+        preferredName: '', // Will be auto-generated from firstName
+        legallyAuthorized: 'Yes', // Default: Authorized to work in US
+        requireSponsorship: 'No', // Default: No sponsorship needed
+        willingToRelocate: 'Yes',
+        remoteWorkPreference: 'Hybrid - I understand and agree to come into the office as required',
+        yearsOfExperienceText: '',
+        yearsOfExperience: 3, // Default to 3+ years
+        writingSampleUrl: '',
+        portfolioUrls: '', // Stored portfolio/writing sample URLs (persists across sessions)
+        howDidYouHearSource: '', // Will be randomly selected
+        affirmTruthfulness: 'Yes',
+        coverLetterText: '',
+        hybridScheduleAgreement: 'Yes', // Agree to hybrid/in-office schedule
+        copywritingExperience: 'Yes', // Default to having experience
+        // US Work Authorization - DEFAULTS
+        usCitizen: 'Yes', // Default: US Citizen
+        needsWorkVisa: 'No', // Default: No visa needed
+        // Additional question defaults
+        pronouns: '',
+        currentCountry: 'United States',
+        currentStateProvince: '',
+        sponsorshipDetails: 'I am authorized to work in the United States and do not require sponsorship',
+        hourlyRate: '',
+        desiredSalary: '',
+        // Demographics - DEFAULTS (for EEO questions) - Always answer with specific values
+        race: 'Two or More Races', // Default answer
+        gender: 'Male', // Default answer
+        hispanicLatino: 'No', // Default answer
+        veteran: 'I am not a protected veteran', // Default answer
+        disability: 'No, I do not have a disability and have not had one in the past' // Default answer
     };
 
     // Store uploaded resume file
@@ -125,7 +171,7 @@
             'apartment', 'unit', 'building'
         ],
         city: [
-            'city', 'town', 'municipality', 'locality', 'city_name'
+            'city', 'town', 'municipality', 'locality', 'city_name', 'city name'
         ],
         state: [
             'state', 'province', 'region', 'state/province', 'state-province',
@@ -139,6 +185,10 @@
         country: [
             'country', 'nation', 'country/region', 'country-region', 'county',
             'country_region'
+        ],
+        currentLocation: [
+            'current location', 'location', 'your location', 'where are you located',
+            'current city', 'residing in', 'based in', 'living in'
         ],
         // Resume-based fields
         skills: [
@@ -161,6 +211,26 @@
             'highest education', 'education level', 'academic background',
             'educational background', 'qualification'
         ],
+        school: [
+            'school', 'university', 'college', 'institution', 'school name',
+            'university name', 'college name', 'educational institution',
+            'attended', 'alma mater'
+        ],
+        degree: [
+            'degree', 'degree type', 'degree level', 'academic degree',
+            'qualification', 'diploma', 'certification level',
+            'highest degree', 'education level'
+        ],
+        discipline: [
+            'discipline', 'major', 'field of study', 'area of study',
+            'concentration', 'specialization', 'subject', 'field',
+            'degree field', 'study area', 'academic focus'
+        ],
+        locationCity: [
+            'location', 'city', 'location (city)', 'city location',
+            'current city', 'where are you located', 'your city',
+            'residing city', 'home city'
+        ],
         currentJobTitle: [
             'current title', 'job title', 'position', 'current position',
             'current role', 'title', 'your title', 'role', 'job role',
@@ -175,10 +245,14 @@
             'github', 'github url', 'github profile', 'github link',
             'github.com', 'git hub', 'github username', 'github account'
         ],
+        twitter: [
+            'twitter', 'twitter url', 'twitter handle', 'twitter username',
+            'twitter profile', 'twitter link', 'twitter.com', 'x.com', 'x url'
+        ],
         portfolio: [
             'portfolio', 'portfolio url', 'website', 'personal website',
             'portfolio link', 'online portfolio', 'portfolio site',
-            'personal site', 'web portfolio'
+            'personal site', 'web portfolio', 'other website'
         ],
         certifications: [
             'certifications', 'certification', 'certificate', 'licenses',
@@ -200,6 +274,142 @@
             'salary', 'salary expectation', 'expected salary', 'desired salary',
             'salary requirement', 'compensation', 'expected compensation',
             'pay expectation', 'salary range'
+        ],
+        // Common Application Questions
+        preferredName: [
+            'preferred name', 'name you would like us to use', 'name to use',
+            'what name would you like', 'name for interview', 'preferred first name'
+        ],
+        legallyAuthorized: [
+            'legally authorized', 'authorized to work', 'legal to work',
+            'work authorization', 'eligible to work', 'work eligibility',
+            'authorized for employment', 'employment authorization',
+            'legally work in', 'eligible to legally work'
+        ],
+        requireSponsorship: [
+            'require sponsorship', 'need sponsorship', 'visa sponsorship',
+            'sponsorship required', 'work visa', 'sponsorship needed',
+            'require visa', 'immigration sponsorship'
+        ],
+        willingToRelocate: [
+            'willing to relocate', 'relocate', 'relocation', 'move to',
+            'open to relocation', 'able to relocate', 'relocation available'
+        ],
+        remoteWorkPreference: [
+            'remote', 'work from home', 'hybrid', 'in office', 'on-site',
+            'office schedule', 'come into the office', 'work location preference'
+        ],
+        yearsOfExperience: [
+            'years of experience', 'years experience', 'how many years',
+            'experience level', 'years in field', 'professional experience years',
+            'years of writing experience', 'writing experience'
+        ],
+        remoteExperience: [
+            'remote position', 'remote experience', 'worked remotely',
+            'remote work', 'had a remote position', 'remote job', 'work from home experience'
+        ],
+        agencyExperience: [
+            'marketing agency', 'agency experience', 'worked at agency',
+            'agency before', 'at a marketing agency', 'agency background'
+        ],
+        storyBrandExperience: [
+            'storybrand', 'storytelling', 'story brand', 'storytelling copy',
+            'storybrand copy', 'narrative copy'
+        ],
+        sampleCopy: [
+            'sample copy', 'writing sample', 'copy sample', 'provide a link to sample',
+            'portfolio', 'work sample', 'link to sample'
+        ],
+        currentlyInUS: [
+            'in the u.s.', 'in the us', 'are you in the u.s.', 'currently in the united states',
+            'located in us', 'in united states now'
+        ],
+        textMessaging: [
+            'text messaging', 'opt-in text', 'receive text', 'text message updates',
+            'sms updates', 'text notifications'
+        ],
+        additionalFiles: [
+            'additional files', 'other files', 'work samples', 'letters',
+            'any additional', 'extra files', 'supplemental'
+        ],
+        writingSample: [
+            'writing sample', 'portfolio link', 'work sample', 'sample work',
+            'examples of work', 'portfolio url', 'work examples'
+        ],
+        howDidYouHear: [
+            'how did you hear', 'how did you find', 'where did you hear',
+            'referral source', 'heard about us', 'find this job', 'learn about'
+        ],
+        affirmTruthfulness: [
+            'affirm', 'information is true', 'true and accurate', 'certify',
+            'information submitted', 'truthful', 'accurate information',
+            'confirm accuracy', 'verify information'
+        ],
+        coverLetter: [
+            'cover letter', 'coverletter', 'letter of interest',
+            'why are you interested', 'why this role', 'why do you want'
+        ],
+        pronouns: [
+            'pronouns', 'preferred pronouns', 'gender pronouns',
+            'he/him', 'she/her', 'they/them', 'pronoun'
+        ],
+        currentCountry: [
+            'current country', 'country of residence', 'residing country',
+            'where do you currently live', 'current location country',
+            'country you reside', 'country including state', 'country/state'
+        ],
+        currentStateProvince: [
+            'state/province', 'state or province', 'province/region',
+            'state/region', 'province or region', 'state-province'
+        ],
+        sponsorshipDetails: [
+            'sponsorship details', 'sponsorship requirements', 'visa details',
+            'provide details regarding', 'sponsorship information',
+            'if yes, please provide', 'explain sponsorship'
+        ],
+        hourlyRate: [
+            'hourly rate', 'hourly compensation', 'hourly pay', 'rate per hour',
+            'hourly expectation', 'hourly wage', 'hourly salary', '$/hour', 'per hour'
+        ],
+        desiredSalary: [
+            'desired salary', 'expected salary', 'salary expectation',
+            'compensation expectation', 'target salary', 'salary requirement'
+        ],
+        // Agreement/Acknowledgment fields
+        hybridScheduleAgreement: [
+            'hybrid position', 'hybrid schedule', 'office schedule', 'in office',
+            'expected in', 'office every', 'remote is not an option', 'understand and agree',
+            'agree to the schedule', 'inglewood office', 'tuesday', 'thursday'
+        ],
+        copywritingExperience: [
+            'copywriting experience', 'years of copywriting', 'copywriter experience',
+            '3+ years', 'three years', 'writing experience', 'content writing experience'
+        ],
+        customFileUpload: [
+            'octopus', 'pirate', 'drawing', 'original drawing', 'submit your',
+            'creative submission', 'additional file', 'other attachment'
+        ],
+        // Demographic/EEO fields (these need to be checked BEFORE location fields)
+        hispanicLatino: [
+            'are you hispanic', 'hispanic/latino', 'hispanic or latino', 
+            'are you hispanic/latino', 'hispanic latino', 'hispanic origin', 
+            'latino origin', 'hispanic ethnicity'
+        ],
+        raceEthnicity: [
+            'race', 'ethnicity', 'racial', 'ethnic background', 'race/ethnicity',
+            'racial identity', 'ethnic identity', 'demographic'
+        ],
+        genderIdentity: [
+            'gender', 'gender identity', 'sex', 'gender identification',
+            'identify as', 'your gender'
+        ],
+        veteranStatus: [
+            'veteran', 'veteran status', 'military', 'armed forces',
+            'protected veteran', 'military service', 'served in military'
+        ],
+        disabilityStatus: [
+            'disability', 'disability status', 'disabled', 'accommodation',
+            'physical disability', 'mental disability', 'impairment'
         ]
     };
 
@@ -414,20 +624,27 @@
         
         // Extract phone - multiple formats
         const phonePatterns = [
-            /(\+?1?\s*)?(\()?\d{3}(\))?[\s.-]?\d{3}[\s.-]?\d{4}/,
-            /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/,
-            /\(\d{3}\)\s*\d{3}[-.\s]?\d{4}/
+            /(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/,  // (575) 495-0323 or 575-495-0323
+            /(\d{3})[-.\s]?(\d{3})[-.\s]?(\d{4})/,  // 575.495.0323
+            /\((\d{3})\)\s*(\d{3})[-.\s]?(\d{4})/  // (575)4950323
         ];
         
         for (const pattern of phonePatterns) {
             const phoneMatch = text.match(pattern);
             if (phoneMatch) {
-                const phone = phoneMatch[0];
-                data.phone = phone;
-                data.phoneRaw = phone.replace(/\D/g, '');
-                data.phoneFormatted = formatPhone(data.phoneRaw);
-                console.log('✅ Found phone:', data.phoneFormatted);
-                break;
+                // Extract the digits
+                let digits = phoneMatch[0].replace(/\D/g, '');
+                // Remove country code if present
+                if (digits.length === 11 && digits[0] === '1') {
+                    digits = digits.substring(1);
+                }
+                if (digits.length === 10) {
+                    data.phoneRaw = digits;
+                    data.phone = `${digits.substring(0,3)}-${digits.substring(3,6)}-${digits.substring(6)}`;
+                    data.phoneFormatted = `(${digits.substring(0,3)}) ${digits.substring(3,6)}-${digits.substring(6)}`;
+                    console.log('✅ Found phone:', data.phoneFormatted, 'from:', phoneMatch[0]);
+                    break;
+                }
             }
         }
         
@@ -889,14 +1106,58 @@
         // Load saved profile data
         loadSavedProfile();
         
-        // Request page data from parent (content script)
-        requestPageDataFromParent();
+        // Request page data from content script (for side panel mode)
+        requestPageDataFromContentScript();
         
         // Set up event listeners
         setupEventListeners();
         
         // Display initial state
         displayDetectedFields();
+        
+        // Set up message listener for content script responses
+        chrome.runtime.onMessage.addListener(handleContentScriptMessage);
+    }
+    
+    /**
+     * Request page data from content script (in side panel mode)
+     */
+    async function requestPageDataFromContentScript() {
+        console.log('📨 Requesting page data from content script...');
+        
+        try {
+            // Get the active tab
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0]) {
+                // Request page data
+                chrome.tabs.sendMessage(tabs[0].id, { action: 'getPageData' }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn('Could not get page data:', chrome.runtime.lastError.message);
+                        return;
+                    }
+                    if (response && response.success) {
+                        console.log('✅ Received page data:', response.data);
+                        jobDetails = response.data;
+                        updateJobDetailsUI();
+                        cacheJobApplication();
+                    }
+                });
+                
+                // Request form fields
+                chrome.tabs.sendMessage(tabs[0].id, { action: 'getFormFields' }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn('Could not get form fields:', chrome.runtime.lastError.message);
+                        return;
+                    }
+                    if (response && response.success) {
+                        console.log('✅ Received form fields:', response.fields);
+                        processFormFields(response.fields);
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('Could not request page data from content script:', e);
+        }
     }
     
     /**
@@ -923,19 +1184,26 @@
     }
     
     // Request page data from content script (which has full page access)
-    function requestPageDataFromParent() {
+    async function requestPageDataFromParent() {
         console.log('📨 Requesting page data from content script...');
         
         try {
-            // Send message to content script
-            window.parent.postMessage({ action: 'requestPageData' }, '*');
-            window.parent.postMessage({ action: 'getFormFields' }, '*');
+            // Get the current active tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            if (tab) {
+                // Send message to content script in the active tab
+                chrome.tabs.sendMessage(tab.id, { action: 'requestPageData' });
+                chrome.tabs.sendMessage(tab.id, { action: 'getFormFields' });
+                
+                console.log('✅ Sent page data request to tab:', tab.id);
+            }
         } catch (e) {
             console.warn('Could not request page data:', e);
         }
         
-        // Listen for response
-        window.addEventListener('message', handleParentMessage);
+        // Listen for response from content script
+        chrome.runtime.onMessage.addListener(handleContentScriptMessage);
     }
     
     // Handle messages from parent (content script)
@@ -949,6 +1217,24 @@
             console.log('✅ Received form fields:', event.data.fields);
             processFormFields(event.data.fields);
         }
+    }
+    
+    // Handle messages from content script (for side panel mode)
+    function handleContentScriptMessage(message, sender, sendResponse) {
+        if (message.action === 'pageDataResponse') {
+            console.log('✅ Received page data:', message.data);
+            jobDetails = message.data;
+            updateJobDetailsUI();
+            cacheJobApplication();
+            sendResponse({ received: true });
+            return false; // Synchronous response
+        } else if (message.action === 'formFieldsResponse') {
+            console.log('✅ Received form fields:', message.fields);
+            processFormFields(message.fields);
+            sendResponse({ received: true });
+            return false; // Synchronous response
+        }
+        return false; // Don't keep channel open
     }
     
     // Process form fields received from content script
@@ -991,8 +1277,25 @@
             field.className || ''
         ].join(' ').toLowerCase();
         
-        // Check patterns
+        // Priority check for specific patterns that might conflict
+        // Check demographic/EEO fields FIRST (more specific patterns)
+        const priorityFields = ['hispanicLatino', 'raceEthnicity', 'genderIdentity', 'veteranStatus', 'disabilityStatus', 'hybridScheduleAgreement', 'copywritingExperience'];
+        for (const fieldType of priorityFields) {
+            const patterns = FIELD_PATTERNS[fieldType];
+            if (patterns) {
+                for (const pattern of patterns) {
+                    if (combinedText.includes(pattern)) {
+                        return fieldType;
+                    }
+                }
+            }
+        }
+        
+        // Then check all other patterns
         for (const [fieldType, patterns] of Object.entries(FIELD_PATTERNS)) {
+            // Skip priority fields (already checked)
+            if (priorityFields.includes(fieldType)) continue;
+            
             for (const pattern of patterns) {
                 if (combinedText.includes(pattern)) {
                     return fieldType;
@@ -1674,8 +1977,41 @@
         return null;
     }
 
+    /**
+     * Send message to content script to fill a field
+     * Works in side panel mode using chrome.tabs API
+     */
+    async function sendFillFieldMessage(fieldIdentifier, value) {
+        try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0]) {
+                return new Promise((resolve) => {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: 'fillField',
+                        fieldIdentifier: fieldIdentifier,
+                        value: value
+                    }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.warn('Error filling field:', chrome.runtime.lastError.message);
+                            resolve(false);
+                        } else if (response && response.success) {
+                            console.log('✅ Field filled:', fieldIdentifier);
+                            resolve(true);
+                        } else {
+                            resolve(false);
+                        }
+                    });
+                });
+            }
+            return false;
+        } catch (e) {
+            console.error('Error sending fill message:', e);
+            return false;
+        }
+    }
+
     // Auto-fill the detected fields
-    function autoFillFields() {
+    async function autoFillFields() {
         console.log('✨ Auto-filling fields...');
         
         const btn = document.getElementById('autoFillBtn');
@@ -1688,7 +2024,8 @@
         const fieldsList = document.getElementById('fieldsList');
         fieldsList.innerHTML = '';
 
-        detectedFields.forEach(field => {
+        // Process each field
+        for (const field of detectedFields) {
             let value = '';
             
             switch(field.fieldType) {
@@ -1705,7 +2042,24 @@
                     value = USER_PROFILE.email;
                     break;
                 case 'phone':
-                    value = USER_PROFILE.phoneFormatted || USER_PROFILE.phone;
+                    // Try to determine the format the field expects
+                    // Check placeholder or maxlength to guess format
+                    if (field.placeholder) {
+                        const placeholder = field.placeholder.toLowerCase();
+                        if (placeholder.includes('(') || placeholder.includes(')')) {
+                            // Expects (XXX) XXX-XXXX format
+                            value = USER_PROFILE.phoneFormatted || USER_PROFILE.phone;
+                        } else if (placeholder.includes('-')) {
+                            // Expects XXX-XXX-XXXX format
+                            value = USER_PROFILE.phone || USER_PROFILE.phoneFormatted;
+                        } else {
+                            // No clear format, use raw digits
+                            value = USER_PROFILE.phoneRaw || USER_PROFILE.phone;
+                        }
+                    } else {
+                        // Default to formatted version
+                        value = USER_PROFILE.phone || USER_PROFILE.phoneFormatted;
+                    }
                     break;
                 case 'linkedIn':
                     value = USER_PROFILE.linkedInUrl;
@@ -1743,6 +2097,17 @@
                 case 'country':
                     value = USER_PROFILE.country;
                     break;
+                case 'currentLocation':
+                    // Format: "City, State" or "City, State ZIP"
+                    if (USER_PROFILE.city && USER_PROFILE.state) {
+                        value = `${USER_PROFILE.city}, ${USER_PROFILE.state}`;
+                        if (USER_PROFILE.zipCode) {
+                            value += ` ${USER_PROFILE.zipCode}`;
+                        }
+                    } else {
+                        value = USER_PROFILE.city || '';
+                    }
+                    break;
                 // Resume-based fields
                 case 'skills':
                     value = USER_PROFILE.skills?.join(', ') || '';
@@ -1759,6 +2124,30 @@
                         value = `${edu.degree} - ${edu.school}`;
                     }
                     break;
+                case 'school':
+                    if (USER_PROFILE.education && USER_PROFILE.education.length > 0) {
+                        value = USER_PROFILE.education[0].school || USER_PROFILE.school || '';
+                    } else {
+                        value = USER_PROFILE.school || '';
+                    }
+                    break;
+                case 'degree':
+                    if (USER_PROFILE.education && USER_PROFILE.education.length > 0) {
+                        value = USER_PROFILE.education[0].degree || USER_PROFILE.degreeLevel || '';
+                    } else {
+                        value = USER_PROFILE.degreeLevel || '';
+                    }
+                    break;
+                case 'discipline':
+                    if (USER_PROFILE.education && USER_PROFILE.education.length > 0) {
+                        value = USER_PROFILE.education[0].discipline || USER_PROFILE.education[0].major || '';
+                    } else {
+                        value = ''; // Leave blank unless specified
+                    }
+                    break;
+                case 'locationCity':
+                    value = USER_PROFILE.city || '';
+                    break;
                 case 'currentJobTitle':
                     if (USER_PROFILE.experience && USER_PROFILE.experience.length > 0) {
                         value = USER_PROFILE.experience[0].title || '';
@@ -1772,6 +2161,9 @@
                 // New fields
                 case 'github':
                     value = USER_PROFILE.githubUrl || '';
+                    break;
+                case 'twitter':
+                    value = ''; // Leave empty unless user has twitter in profile
                     break;
                 case 'portfolio':
                     value = USER_PROFILE.websiteUrl || '';
@@ -1795,6 +2187,126 @@
                 case 'salary':
                     value = ''; // Leave blank - user should fill manually
                     break;
+                // Common Application Questions
+                case 'preferredName':
+                    value = USER_PROFILE.preferredName || USER_PROFILE.fullName;
+                    break;
+                case 'legallyAuthorized':
+                    value = USER_PROFILE.legallyAuthorized; // "Yes"
+                    break;
+                case 'requireSponsorship':
+                    value = USER_PROFILE.requireSponsorship; // "No"
+                    break;
+                case 'willingToRelocate':
+                    value = USER_PROFILE.willingToRelocate; // "Yes"
+                    break;
+                case 'remoteWorkPreference':
+                    value = USER_PROFILE.remoteWorkPreference; // "Hybrid - I understand and agree..."
+                    break;
+                case 'yearsOfExperience':
+                    // Handle both text and numeric responses
+                    if (USER_PROFILE.yearsOfExperience >= 5) {
+                        value = '5+ years';
+                    } else if (USER_PROFILE.yearsOfExperience >= 3) {
+                        value = '3-4 years';
+                    } else if (USER_PROFILE.yearsOfExperience >= 1) {
+                        value = '1-2 years';
+                    } else {
+                        value = USER_PROFILE.yearsOfExperienceText || `${USER_PROFILE.yearsOfExperience}+ years`;
+                    }
+                    break;
+                case 'remoteExperience':
+                    value = 'Yes'; // Default to having remote experience
+                    break;
+                case 'agencyExperience':
+                    value = 'Yes'; // Default to having agency experience
+                    break;
+                case 'storyBrandExperience':
+                    value = USER_PROFILE.portfolioUrls || 'Yes, I have storytelling/storybrand experience';
+                    break;
+                case 'sampleCopy':
+                    value = USER_PROFILE.portfolioUrls || USER_PROFILE.writingSampleUrl || '';
+                    break;
+                case 'currentlyInUS':
+                    value = 'Yes'; // Default to being in US
+                    break;
+                case 'textMessaging':
+                    value = 'Yes'; // Default to opting in for text messages
+                    break;
+                case 'additionalFiles':
+                    // Skip file uploads
+                    continue;
+                case 'writingSample':
+                    // Use portfolioUrls if available, otherwise fallback to writingSampleUrl
+                    value = USER_PROFILE.portfolioUrls || USER_PROFILE.writingSampleUrl || '';
+                    break;
+                case 'howDidYouHear':
+                    // Randomly select from common sources
+                    if (!USER_PROFILE.howDidYouHearSource) {
+                        const sources = ['LinkedIn', 'Indeed', 'Company Website', 'Referral', 'Job Board', 'Google Search', 'Recruiter'];
+                        value = sources[Math.floor(Math.random() * sources.length)];
+                    } else {
+                        value = USER_PROFILE.howDidYouHearSource;
+                    }
+                    break;
+                case 'affirmTruthfulness':
+                    value = USER_PROFILE.affirmTruthfulness; // "Yes"
+                    break;
+                case 'coverLetter':
+                    value = USER_PROFILE.coverLetterText || '';
+                    break;
+                case 'pronouns':
+                    value = USER_PROFILE.pronouns; // "He/Him/His"
+                    break;
+                case 'currentCountry':
+                    value = USER_PROFILE.currentCountry; // "United States"
+                    break;
+                case 'currentStateProvince':
+                    value = USER_PROFILE.currentStateProvince || USER_PROFILE.stateFull || USER_PROFILE.state; // "Texas"
+                    break;
+                case 'sponsorshipDetails':
+                    value = USER_PROFILE.sponsorshipDetails; // "I am a U.S. citizen and do not require sponsorship"
+                    break;
+                case 'hourlyRate':
+                    value = USER_PROFILE.hourlyRate || ''; // Leave blank by default
+                    break;
+                case 'desiredSalary':
+                    value = USER_PROFILE.desiredSalary || ''; // Leave blank by default
+                    break;
+                
+                // Agreement/Acknowledgment fields
+                case 'hybridScheduleAgreement':
+                    value = 'Yes'; // Agree to hybrid schedule
+                    break;
+                case 'copywritingExperience':
+                    // Check if they have 3+ years
+                    if (USER_PROFILE.yearsOfExperience && USER_PROFILE.yearsOfExperience >= 3) {
+                        value = 'Yes';
+                    } else {
+                        value = 'Yes'; // Default to Yes
+                    }
+                    break;
+                case 'customFileUpload':
+                    // Skip custom file uploads (octopus/pirate drawing, etc.)
+                    continue;
+                
+                // Demographic/EEO fields
+                case 'hispanicLatino':
+                    value = USER_PROFILE.hispanicLatino || 'No';
+                    break;
+                case 'raceEthnicity':
+                    value = USER_PROFILE.race || 'Two or More Races';
+                    break;
+                case 'genderIdentity':
+                    value = USER_PROFILE.gender || 'Male';
+                    break;
+                case 'veteranStatus':
+                    value = USER_PROFILE.veteran || 'I am not a protected veteran';
+                    break;
+                case 'disabilityStatus':
+                    value = USER_PROFILE.disability || 'No, I do not have a disability and have not had one in the past';
+                    break;
+                
                 case 'resume':
                     // Handle file upload separately
                     if (uploadedResumeFile && field.isFileInput) {
@@ -1891,12 +2403,8 @@
             }
 
             if (value) {
-                // Send message to content script to fill the field
-                window.parent.postMessage({
-                    action: 'fillField',
-                    fieldIdentifier: field.identifier,
-                    value: value
-                }, '*');
+                // Send message to content script to fill the field (side panel mode)
+                await sendFillFieldMessage(field.identifier, value);
                 
                 filledCount++;
                 
@@ -1908,7 +2416,7 @@
                     '</span><span class="field-status">' + String.fromCharCode(9989) + '</span>';
                 fieldsList.appendChild(fieldItem);
             }
-        });
+        }
 
         // Update UI
         setTimeout(async () => {
@@ -2399,6 +2907,55 @@
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
+
+    // ============================================================================
+    // PUBLIC API - Allow inline editing of profile fields
+    // ============================================================================
+    
+    /**
+     * Update USER_PROFILE field and save to storage
+     * Called by the inline edit functionality in the HTML
+     */
+    window.updateUserProfile = function(fieldName, newValue) {
+        console.log(`📝 Updating USER_PROFILE.${fieldName} = "${newValue}"`);
+        
+        // Update the USER_PROFILE object
+        if (fieldName === 'fullName') {
+            USER_PROFILE.fullName = newValue;
+            // Try to split into first/last name
+            const nameParts = newValue.split(' ');
+            if (nameParts.length >= 2) {
+                USER_PROFILE.firstName = nameParts[0];
+                USER_PROFILE.lastName = nameParts.slice(1).join(' ');
+            }
+        } else if (fieldName === 'address') {
+            // Parse full address
+            USER_PROFILE.address1 = newValue;
+            // Try to extract city, state, zip
+            const match = newValue.match(/,\s*([^,]+),\s*([A-Z]{2})\s+(\d{5})/);
+            if (match) {
+                USER_PROFILE.city = match[1].trim();
+                USER_PROFILE.state = match[2];
+                USER_PROFILE.zipCode = match[3];
+            }
+        } else if (fieldName === 'phone') {
+            USER_PROFILE.phone = newValue;
+            USER_PROFILE.phoneFormatted = newValue;
+            USER_PROFILE.phoneRaw = newValue.replace(/\D/g, '');
+        } else {
+            // Direct field mapping
+            USER_PROFILE[fieldName] = newValue;
+        }
+        
+        // Save to chrome storage
+        chrome.storage.local.set({ 
+            unnanu_user_profile: USER_PROFILE 
+        }, function() {
+            console.log('✅ Profile saved to storage');
+        });
+        
+        return true;
+    };
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {

@@ -19,37 +19,15 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: #fff;
             padding: 20px;
-            padding-top: 60px;
             min-height: 100vh;
             position: relative;
         }
 
         .close-btn {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            width: 36px;
-            height: 36px;
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            z-index: 1000;
-            pointer-events: auto !important;
-        }
-
-        .close-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
+            display: none; /* Hidden in side panel mode */
         }
 
         .container {
@@ -102,7 +80,7 @@
         .job-title {
             font-size: 18px;
             font-weight: 600;
-            color: #667eea;
+            color: #2a5298;
             margin-bottom: 8px;
         }
 
@@ -138,7 +116,7 @@
         .section-title {
             font-size: 14px;
             font-weight: 600;
-            color: #667eea;
+            color: #2a5298;
             margin-bottom: 12px;
             display: flex;
             align-items: center;
@@ -161,7 +139,7 @@
         }
 
         .upload-area {
-            border: 2px dashed #667eea;
+            border: 2px dashed #2a5298;
             border-radius: 8px;
             padding: 20px;
             text-align: center;
@@ -171,13 +149,13 @@
         }
 
         .upload-area:hover {
-            background: #f8f9ff;
-            border-color: #764ba2;
+            background: #f0f4ff;
+            border-color: #1e3c72;
         }
 
         .upload-area.dragover {
-            background: #e8ebff;
-            border-color: #764ba2;
+            background: #e3eeff;
+            border-color: #1e3c72;
             transform: scale(1.02);
         }
 
@@ -247,7 +225,7 @@
         .parse-btn {
             width: 100%;
             padding: 10px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
             border: none;
             border-radius: 8px;
@@ -260,7 +238,7 @@
 
         .parse-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 12px rgba(30, 60, 114, 0.5);
         }
 
         .parse-btn:disabled {
@@ -286,30 +264,82 @@
 
         .data-value {
             color: #333;
+            flex: 1;
         }
         
         .clickable-data {
             cursor: pointer;
             transition: all 0.2s ease;
-            padding: 2px 6px;
+            padding: 4px 8px;
             border-radius: 4px;
             position: relative;
+            background: white;
+            border: 1px solid transparent;
+            min-height: 24px;
+            display: inline-block;
+            min-width: 100px;
         }
         
         .clickable-data:hover {
-            background: #e8ebff;
-            color: #667eea;
-            font-weight: 500;
+            background: #e3f2fd;
+            border-color: #2196F3;
+            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
         }
         
         .clickable-data:active {
             transform: scale(0.98);
         }
+        
+        .clickable-data.editing {
+            background: #fff9c4;
+            border-color: #fbc02d;
+            outline: none;
+            cursor: text;
+        }
+        
+        .clickable-data.copied {
+            background: #c8e6c9;
+            border-color: #4caf50;
+        }
+        
+        .copy-tooltip {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #323232;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 1000;
+        }
+        
+        .copy-tooltip.show {
+            opacity: 1;
+        }
+        
+        .copy-tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 4px solid #323232;
+        }
 
         .auto-fill-btn {
             width: 100%;
             padding: 14px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -317,7 +347,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(30, 60, 114, 0.4);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -326,7 +356,7 @@
 
         .auto-fill-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 20px rgba(30, 60, 114, 0.5);
         }
 
         .auto-fill-btn:active {
@@ -374,12 +404,12 @@
             border-radius: 6px;
             margin-bottom: 8px;
             font-size: 12px;
-            border-left: 3px solid #667eea;
+            border-left: 3px solid #2a5298;
         }
 
         .field-label {
             font-weight: 600;
-            color: #667eea;
+            color: #2a5298;
             min-width: 80px;
         }
 
@@ -824,11 +854,20 @@
     <button class="close-btn" id="closeSidebarBtn" title="Close sidebar">&times;</button>
     
     <div class="container">
-        <div class="header">
-            <div class="logo">🎯</div>
-            <h1>Talent Assistant</h1>
-            <p class="subtitle">Auto-fill job applications instantly</p>
+        <div class="header" style="background: none; padding: 0; margin-bottom: 20px;">
+            <img id="logoImage" 
+                 alt="Unnanu" 
+                 class="logo-image"
+                 style="width: 100%; max-width: 100%; height: auto; cursor: pointer; margin: 0 auto; display: block; opacity: 1; background: none;"
+                 title="Click to toggle sidebar" />
+            <p class="subtitle" style="margin-top: 16px; font-size: 14px; text-align: center;">Auto-fill job applications instantly</p>
         </div>
+
+        <!-- Auto-Fill Button at the top -->
+        <button class="auto-fill-btn" id="autoFillBtn" style="margin-bottom: 20px;">
+            <span>✨</span>
+            <span>Auto-Fill Application</span>
+        </button>
 
         <div class="card">
             <div class="job-details" id="jobDetails">
@@ -853,7 +892,7 @@
 
             <div class="profile-section">
                 <div class="section-title">
-                    <span class="mini-icon">�</span>
+                    <span class="mini-icon">📄</span>
                     Upload Resume
                 </div>
                 <div class="upload-section">
@@ -883,29 +922,51 @@
 
             <div class="profile-section">
                 <div class="section-title">
-                    <span class="mini-icon">�👤</span>
+                    <span class="mini-icon">👤</span>
                     Your Profile Data
                 </div>
                 <div class="profile-data" id="profileData">
                     <div class="data-row">
                         <span class="data-label">Name:</span>
-                        <span class="data-value">Maximillion Deleonardis</span>
+                        <span class="data-value clickable-data" contenteditable="false" data-field="fullName"></span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">Email:</span>
-                        <span class="data-value">max@unnanu.ai</span>
+                        <span class="data-value clickable-data" contenteditable="false" data-field="email"></span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">Phone:</span>
-                        <span class="data-value">(575) 495-0323</span>
+                        <span class="data-value clickable-data" contenteditable="false" data-field="phone"></span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">Address:</span>
-                        <span class="data-value">4308 Canoas Drive, Austin, TX 78730</span>
+                        <span class="data-value clickable-data" contenteditable="false" data-field="address"></span>
                     </div>
                     <div class="data-row">
                         <span class="data-label">LinkedIn:</span>
-                        <span class="data-value">linkedin.com/in/max-deleonardis-341a01350/</span>
+                        <span class="data-value clickable-data" contenteditable="false" data-field="linkedInUrl"></span>
+                    </div>
+                </div>
+                
+                <!-- Portfolio URLs Field -->
+                <div class="profile-section" style="margin-top: 16px;">
+                    <div class="section-title" style="font-size: 13px;">
+                        <span class="mini-icon">�</span>
+                        Portfolio URLs
+                    </div>
+                    <textarea 
+                        id="portfolioUrls" 
+                        class="portfolio-urls-field"
+                        placeholder="Add your portfolio links, writing samples, or project URLs (one per line)..."
+                        style="width: 100%; min-height: 80px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 12px; font-family: inherit; resize: vertical; background: white; color: #333;"
+                    ></textarea>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button id="copyPortfolioBtn" style="flex: 1; padding: 8px; background: #2196F3; color: white; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600;">
+                            📋 Copy URLs
+                        </button>
+                        <button id="savePortfolioBtn" style="flex: 1; padding: 8px; background: #4CAF50; color: white; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600;">
+                            💾 Save URLs
+                        </button>
                     </div>
                 </div>
                 
@@ -938,11 +999,6 @@
             <!-- Smart Responses Container -->
             <div id="smartResponsesContainer" class="smart-responses-container" style="display: none;"></div>
             </div>
-
-            <button class="auto-fill-btn" id="autoFillBtn">
-                <span>✨</span>
-                <span>Auto-Fill Application</span>
-            </button>
             
             <button class="refresh-btn" id="refreshFieldsBtn" style="margin-top: 10px; width: 100%; padding: 12px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); border-radius: 12px; color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; transition: all 0.3s ease;">
                 <span>🔄</span>
@@ -967,6 +1023,222 @@
 
     <script src="user-preferences.js"></script>
     <script src="smart-responses.js"></script>
+    <script>
+        // Click-to-copy and double-click-to-edit functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const clickableFields = document.querySelectorAll('.clickable-data');
+            
+            clickableFields.forEach(field => {
+                let clickTimeout = null;
+                let isEditing = false;
+                
+                // Single click - copy to clipboard
+                field.addEventListener('click', function(e) {
+                    if (isEditing) return; // Don't copy while editing
+                    
+                    clearTimeout(clickTimeout);
+                    clickTimeout = setTimeout(() => {
+                        // Copy text to clipboard
+                        const text = field.textContent.trim();
+                        navigator.clipboard.writeText(text).then(() => {
+                            // Show visual feedback
+                            field.classList.add('copied');
+                            showCopyTooltip(field, 'Copied!');
+                            
+                            setTimeout(() => {
+                                field.classList.remove('copied');
+                            }, 1000);
+                        }).catch(err => {
+                            console.error('Failed to copy:', err);
+                            showCopyTooltip(field, 'Copy failed');
+                        });
+                    }, 200); // Small delay to detect double-click
+                }, false);
+                
+                // Double click - enable editing
+                field.addEventListener('dblclick', function(e) {
+                    clearTimeout(clickTimeout);
+                    
+                    // Enable editing
+                    isEditing = true;
+                    field.contentEditable = 'true';
+                    field.classList.add('editing');
+                    field.focus();
+                    
+                    // Select all text
+                    const range = document.createRange();
+                    range.selectNodeContents(field);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    
+                    showCopyTooltip(field, 'Edit mode - Press Enter to save');
+                });
+                
+                // Handle blur (when user clicks outside)
+                field.addEventListener('blur', function(e) {
+                    if (isEditing) {
+                        saveFieldEdit(field);
+                        isEditing = false;
+                    }
+                });
+                
+                // Handle Enter key to save
+                field.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        field.blur(); // Trigger save
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        // Revert changes
+                        field.contentEditable = 'false';
+                        field.classList.remove('editing');
+                        isEditing = false;
+                        // Reload original value from USER_PROFILE
+                        loadProfileData();
+                    }
+                });
+            });
+            
+            function showCopyTooltip(element, message) {
+                // Remove existing tooltip if any
+                const existingTooltip = element.querySelector('.copy-tooltip');
+                if (existingTooltip) {
+                    existingTooltip.remove();
+                }
+                
+                // Create tooltip
+                const tooltip = document.createElement('div');
+                tooltip.className = 'copy-tooltip';
+                tooltip.textContent = message;
+                element.style.position = 'relative';
+                element.appendChild(tooltip);
+                
+                // Show tooltip
+                setTimeout(() => tooltip.classList.add('show'), 10);
+                
+                // Hide and remove tooltip
+                setTimeout(() => {
+                    tooltip.classList.remove('show');
+                    setTimeout(() => tooltip.remove(), 200);
+                }, 2000);
+            }
+            
+            function saveFieldEdit(field) {
+                field.contentEditable = 'false';
+                field.classList.remove('editing');
+                
+                const fieldName = field.getAttribute('data-field');
+                const newValue = field.textContent.trim();
+                
+                // Update USER_PROFILE in talent-sidebar.js
+                if (typeof window.updateUserProfile === 'function') {
+                    window.updateUserProfile(fieldName, newValue);
+                    showCopyTooltip(field, 'Saved!');
+                } else {
+                    console.log('Updated field:', fieldName, '=', newValue);
+                    showCopyTooltip(field, 'Saved locally');
+                }
+            }
+            
+            function loadProfileData() {
+                // This will be called by talent-sidebar.js when it loads
+                // It will populate the fields with USER_PROFILE data
+            }
+        });
+        
+        // Portfolio URLs functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const portfolioField = document.getElementById('portfolioUrls');
+            const copyBtn = document.getElementById('copyPortfolioBtn');
+            const saveBtn = document.getElementById('savePortfolioBtn');
+            
+            // Load saved portfolio URLs from storage
+            chrome.storage.local.get(['unnanu_user_profile'], function(result) {
+                if (result.unnanu_user_profile && result.unnanu_user_profile.portfolioUrls) {
+                    portfolioField.value = result.unnanu_user_profile.portfolioUrls;
+                }
+            });
+            
+            // Copy portfolio URLs to clipboard
+            copyBtn.addEventListener('click', function() {
+                const urls = portfolioField.value.trim();
+                if (urls) {
+                    navigator.clipboard.writeText(urls).then(() => {
+                        const originalText = copyBtn.innerHTML;
+                        copyBtn.innerHTML = '✅ Copied!';
+                        copyBtn.style.background = '#4CAF50';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = originalText;
+                            copyBtn.style.background = '#2196F3';
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy:', err);
+                        copyBtn.innerHTML = '❌ Failed';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = '📋 Copy URLs';
+                        }, 2000);
+                    });
+                }
+            });
+            
+            // Save portfolio URLs to profile storage (persists across sessions)
+            saveBtn.addEventListener('click', function() {
+                const urls = portfolioField.value.trim();
+                chrome.storage.local.get(['unnanu_user_profile'], function(result) {
+                    const profile = result.unnanu_user_profile || {};
+                    profile.portfolioUrls = urls;
+                    
+                    chrome.storage.local.set({ unnanu_user_profile: profile }, function() {
+                        const originalText = saveBtn.innerHTML;
+                        saveBtn.innerHTML = '✅ Saved!';
+                        setTimeout(() => {
+                            saveBtn.innerHTML = originalText;
+                        }, 2000);
+                        
+                        // Update window profile if function exists
+                        if (typeof window.updateUserProfile === 'function') {
+                            window.updateUserProfile('portfolioUrls', urls);
+                        }
+                    });
+                });
+            });
+        });
+        
+        // Logo click handler to close sidebar
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoImage = document.getElementById('logoImage');
+            
+            // Set the logo src using chrome.runtime.getURL
+            if (logoImage) {
+                const logoUrl = chrome.runtime.getURL('images/unnanu-logo.png');
+                console.log('Loading logo from:', logoUrl);
+                logoImage.src = logoUrl;
+                
+                // Error handling for logo load
+                logoImage.onerror = function() {
+                    console.error('Failed to load logo from:', logoUrl);
+                };
+                logoImage.onload = function() {
+                    console.log('Logo loaded successfully');
+                };
+                
+                logoImage.addEventListener('click', function() {
+                    console.log('Logo clicked - closing sidebar');
+                    // Send message to background to close side panel
+                    chrome.runtime.sendMessage({ 
+                        action: 'forceOpenSidePanel' // Toggle will close if already open
+                    }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('Error toggling sidebar:', chrome.runtime.lastError.message);
+                        } else if (response && response.success) {
+                            console.log('Sidebar toggled via logo click');
+                        }
+                    });
+                });
+            }
+        });
+    </script>
     <script src="talent-sidebar.js"></script>
 </body>
 </html>
