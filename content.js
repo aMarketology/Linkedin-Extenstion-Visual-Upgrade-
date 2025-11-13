@@ -174,11 +174,22 @@ function initializeRecruiterMode() {
     
     // Only show recruiter features on profile pages
     if (window.location.href.includes('linkedin.com/in/')) {
+        // Request to open the recruiter sidebar
+        chrome.runtime.sendMessage({ 
+            action: 'openSidePanel' 
+        }, (response) => {
+            if (response && response.success) {
+                console.log('✅ Recruiter sidebar opened');
+            }
+        });
+        
         // Auto-extract and cache profile when visiting
         autoExtractAndCache();
         
-        // Create floating icon for manual actions
-        createFloatingIcon();
+        // Create floating toggle button
+        createFloatingToggleButton();
+    } else {
+        console.log('ℹ️ Not on a LinkedIn profile page - recruiter sidebar not available');
     }
 }
 

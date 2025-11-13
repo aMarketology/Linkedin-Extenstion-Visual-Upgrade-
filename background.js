@@ -246,45 +246,55 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
-    // Enable side panel for job application page
+    // Enable side panel for job application page (Talent mode)
     if (request.action === 'openSidePanel') {
         if (sender.tab?.id) {
             const tabId = sender.tab.id;
             const windowId = sender.tab.windowId;
             
-            // Enable side panel for this tab and window
-            chrome.sidePanel.setOptions({
-                tabId: tabId,
-                path: 'ui/talent-sidebar.html',
-                enabled: true
-            }).then(() => {
-                console.log('✅ Side panel enabled for tab:', tabId, 'window:', windowId);
-                // Show a badge to indicate panel is available
-                chrome.action.setBadgeText({ text: '✓', tabId: tabId });
-                chrome.action.setBadgeBackgroundColor({ color: '#4CAF50', tabId: tabId });
+            // Determine which sidebar to show based on user role
+            chrome.storage.local.get(['unnanu_user_role'], (result) => {
+                const userRole = result.unnanu_user_role || 'talent';
+                const sidebarPath = userRole === 'recruiter' 
+                    ? 'ui/recruiter-sidebar.html' 
+                    : 'ui/talent-sidebar.html';
                 
-                // Try to open the side panel automatically (try window first, then tab)
-                chrome.sidePanel.open({ windowId: windowId })
-                    .then(() => {
-                        console.log('✅ Side panel auto-opened for job application (window)');
-                        sendResponse({ success: true, opened: true });
-                    })
-                    .catch((error) => {
-                        console.log('ℹ️ Window open failed, trying tab:', error.message);
-                        // Fallback to tab-based opening
-                        chrome.sidePanel.open({ tabId: tabId })
-                            .then(() => {
-                                console.log('✅ Side panel auto-opened (tab fallback)');
-                                sendResponse({ success: true, opened: true });
-                            })
-                            .catch((err) => {
-                                console.log('ℹ️ Side panel enabled but not auto-opened:', err.message);
-                                sendResponse({ success: true, opened: false });
-                            });
-                    });
-            }).catch((error) => {
-                console.error('❌ Error enabling side panel:', error);
-                sendResponse({ success: false, error: error.message });
+                console.log(`📂 Opening ${userRole} sidebar:`, sidebarPath);
+                
+                // Enable side panel for this tab and window
+                chrome.sidePanel.setOptions({
+                    tabId: tabId,
+                    path: sidebarPath,
+                    enabled: true
+                }).then(() => {
+                    console.log('✅ Side panel enabled for tab:', tabId, 'window:', windowId);
+                    // Show a badge to indicate panel is available
+                    chrome.action.setBadgeText({ text: '✓', tabId: tabId });
+                    chrome.action.setBadgeBackgroundColor({ color: '#4CAF50', tabId: tabId });
+                    
+                    // Try to open the side panel automatically (try window first, then tab)
+                    chrome.sidePanel.open({ windowId: windowId })
+                        .then(() => {
+                            console.log('✅ Side panel auto-opened (window)');
+                            sendResponse({ success: true, opened: true });
+                        })
+                        .catch((error) => {
+                            console.log('ℹ️ Window open failed, trying tab:', error.message);
+                            // Fallback to tab-based opening
+                            chrome.sidePanel.open({ tabId: tabId })
+                                .then(() => {
+                                    console.log('✅ Side panel auto-opened (tab fallback)');
+                                    sendResponse({ success: true, opened: true });
+                                })
+                                .catch((err) => {
+                                    console.log('ℹ️ Side panel enabled but not auto-opened:', err.message);
+                                    sendResponse({ success: true, opened: false });
+                                });
+                        });
+                }).catch((error) => {
+                    console.error('❌ Error enabling side panel:', error);
+                    sendResponse({ success: false, error: error.message });
+                });
             });
         }
         return true; // Keep channel open for async response

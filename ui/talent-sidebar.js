@@ -284,12 +284,15 @@
             'legally authorized', 'authorized to work', 'legal to work',
             'work authorization', 'eligible to work', 'work eligibility',
             'authorized for employment', 'employment authorization',
-            'legally work in', 'eligible to legally work'
+            'legally work in', 'eligible to legally work',
+            'legally permitted to work', 'permitted to work', 'are you legally permitted',
+            'legal authorization', 'can you legally work'
         ],
         requireSponsorship: [
             'require sponsorship', 'need sponsorship', 'visa sponsorship',
             'sponsorship required', 'work visa', 'sponsorship needed',
-            'require visa', 'immigration sponsorship'
+            'require visa', 'immigration sponsorship', 'need visa sponsorship',
+            'will you require', 'do you require sponsorship'
         ],
         willingToRelocate: [
             'willing to relocate', 'relocate', 'relocation', 'move to',
@@ -302,35 +305,50 @@
         yearsOfExperience: [
             'years of experience', 'years experience', 'how many years',
             'experience level', 'years in field', 'professional experience years',
-            'years of writing experience', 'writing experience'
+            'years of writing experience', 'writing experience', 'how many years of writing',
+            'years of writing', 'years writing', 'writing experience do you have'
         ],
         remoteExperience: [
             'remote position', 'remote experience', 'worked remotely',
-            'remote work', 'had a remote position', 'remote job', 'work from home experience'
+            'remote work', 'had a remote position', 'remote job', 'work from home experience',
+            'have you had a remote position', 'had a remote position before',
+            'remote position before', 'freelance or employee', 'worked remote'
         ],
         agencyExperience: [
             'marketing agency', 'agency experience', 'worked at agency',
-            'agency before', 'at a marketing agency', 'agency background'
+            'agency before', 'at a marketing agency', 'agency background',
+            'have you worked at a marketing agency', 'worked at a marketing agency before',
+            'marketing agency before', 'agency work'
         ],
         storyBrandExperience: [
             'storybrand', 'storytelling', 'story brand', 'storytelling copy',
-            'storybrand copy', 'narrative copy'
+            'storybrand copy', 'narrative copy', 'experience writing storybrand',
+            'storybrand (storytelling)', 'storytelling like copy', 'storybrand like copy',
+            'please share a sample', 'share a sample or two'
         ],
         sampleCopy: [
             'sample copy', 'writing sample', 'copy sample', 'provide a link to sample',
-            'portfolio', 'work sample', 'link to sample'
+            'portfolio', 'work sample', 'link to sample', 'please provide a link to sample copy',
+            'provide a link to sample', 'link to sample copy', 'sample of your work'
         ],
         currentlyInUS: [
             'in the u.s.', 'in the us', 'are you in the u.s.', 'currently in the united states',
-            'located in us', 'in united states now'
+            'located in us', 'in united states now', 'are you in the u.s. now',
+            'in the us now', 'currently in the us'
         ],
         textMessaging: [
             'text messaging', 'opt-in text', 'receive text', 'text message updates',
             'sms updates', 'text notifications'
         ],
+        subscribeNotifications: [
+            'subscribe', 'notify me', 'notification', 'new opportunities',
+            'please notify me of new opportunities', 'job alerts', 'email notifications',
+            'subscribe to updates', 'keep me informed', 'alert me'
+        ],
         additionalFiles: [
             'additional files', 'other files', 'work samples', 'letters',
-            'any additional', 'extra files', 'supplemental'
+            'any additional', 'extra files', 'supplemental', 'attach files',
+            'click or drag files', 'upload and attach', 'drag files here'
         ],
         writingSample: [
             'writing sample', 'portfolio link', 'work sample', 'sample work',
@@ -1268,7 +1286,57 @@
     }
     
     // Detect field type from field metadata
-    function detectFieldType(field) {
+    
+    /**
+     * Calculate similarity between two strings using Levenshtein distance
+     * Returns a score from 0 (completely different) to 1 (identical)
+     */
+    function calculateSimilarity(str1, str2) {
+        str1 = str1.toLowerCase();
+        str2 = str2.toLowerCase();
+        
+        // Exact match gets highest score
+        if (str1 === str2) return 1.0;
+        
+        // Check if one string contains the other (partial match)
+        if (str1.includes(str2) || str2.includes(str1)) {
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            return shorter.length / longer.length * 0.9; // Partial match gets 90% of containment ratio
+        }
+        
+        // Calculate Levenshtein distance for fuzzy matching
+        const matrix = [];
+        for (let i = 0; i <= str2.length; i++) {
+            matrix[i] = [i];
+        }
+        for (let j = 0; j <= str1.length; j++) {
+            matrix[0][j] = j;
+        }
+        for (let i = 1; i <= str2.length; i++) {
+            for (let j = 1; j <= str1.length; j++) {
+                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1, // substitution
+                        matrix[i][j - 1] + 1,     // insertion
+                        matrix[i - 1][j] + 1      // deletion
+                    );
+                }
+            }
+        }
+        
+        const distance = matrix[str2.length][str1.length];
+        const maxLength = Math.max(str1.length, str2.length);
+        return 1 - (distance / maxLength);
+    }
+    
+    /**
+     * Find best matching field type using fuzzy matching
+     * Returns { fieldType, confidence } or null
+     */
+    function detectFieldTypeWithFuzzy(field) {
         const combinedText = [
             field.name || '',
             field.id || '',
@@ -1277,33 +1345,101 @@
             field.className || ''
         ].join(' ').toLowerCase();
         
+        const CONFIDENCE_THRESHOLD = 0.5; // Minimum 50% similarity to match
+        const HIGH_CONFIDENCE = 0.8; // 80%+ is considered high confidence
+        
+        let bestMatch = null;
+        let bestScore = CONFIDENCE_THRESHOLD;
+        
         // Priority check for specific patterns that might conflict
-        // Check demographic/EEO fields FIRST (more specific patterns)
-        const priorityFields = ['hispanicLatino', 'raceEthnicity', 'genderIdentity', 'veteranStatus', 'disabilityStatus', 'hybridScheduleAgreement', 'copywritingExperience'];
+        const priorityFields = [
+            'hispanicLatino', 'raceEthnicity', 'genderIdentity', 
+            'veteranStatus', 'disabilityStatus', 'hybridScheduleAgreement', 
+            'copywritingExperience', 'legallyAuthorized', 'requireSponsorship'
+        ];
+        
+        // Check priority fields first with exact and fuzzy matching
         for (const fieldType of priorityFields) {
             const patterns = FIELD_PATTERNS[fieldType];
-            if (patterns) {
-                for (const pattern of patterns) {
-                    if (combinedText.includes(pattern)) {
-                        return fieldType;
+            if (!patterns) continue;
+            
+            for (const pattern of patterns) {
+                // Check for exact substring match first (fastest)
+                if (combinedText.includes(pattern)) {
+                    return { fieldType, confidence: 1.0 };
+                }
+                
+                // Calculate fuzzy similarity for each word in combined text
+                const words = combinedText.split(/\s+/);
+                for (const word of words) {
+                    const similarity = calculateSimilarity(word, pattern);
+                    if (similarity > bestScore) {
+                        bestScore = similarity;
+                        bestMatch = fieldType;
+                    }
+                }
+                
+                // Also check multi-word patterns
+                const patternWords = pattern.split(/\s+/);
+                if (patternWords.length > 1) {
+                    const similarity = calculateSimilarity(combinedText, pattern);
+                    if (similarity > bestScore) {
+                        bestScore = similarity;
+                        bestMatch = fieldType;
                     }
                 }
             }
         }
         
-        // Then check all other patterns
+        // Return early if we found a high-confidence priority match
+        if (bestMatch && bestScore >= HIGH_CONFIDENCE) {
+            console.log(`🎯 High-confidence match: ${bestMatch} (${(bestScore * 100).toFixed(1)}%)`);
+            return { fieldType: bestMatch, confidence: bestScore };
+        }
+        
+        // Check all other field types with fuzzy matching
         for (const [fieldType, patterns] of Object.entries(FIELD_PATTERNS)) {
-            // Skip priority fields (already checked)
             if (priorityFields.includes(fieldType)) continue;
             
             for (const pattern of patterns) {
+                // Check for exact substring match first
                 if (combinedText.includes(pattern)) {
-                    return fieldType;
+                    return { fieldType, confidence: 1.0 };
+                }
+                
+                // Calculate fuzzy similarity
+                const words = combinedText.split(/\s+/);
+                for (const word of words) {
+                    const similarity = calculateSimilarity(word, pattern);
+                    if (similarity > bestScore) {
+                        bestScore = similarity;
+                        bestMatch = fieldType;
+                    }
+                }
+                
+                // Check multi-word patterns
+                const patternWords = pattern.split(/\s+/);
+                if (patternWords.length > 1) {
+                    const similarity = calculateSimilarity(combinedText, pattern);
+                    if (similarity > bestScore) {
+                        bestScore = similarity;
+                        bestMatch = fieldType;
+                    }
                 }
             }
         }
         
+        if (bestMatch) {
+            console.log(`🔍 Fuzzy match: ${bestMatch} (${(bestScore * 100).toFixed(1)}%) for: "${combinedText.substring(0, 50)}..."`);
+            return { fieldType: bestMatch, confidence: bestScore };
+        }
+        
         return null;
+    }
+    
+    function detectFieldType(field) {
+        const result = detectFieldTypeWithFuzzy(field);
+        return result ? result.fieldType : null;
     }
 
     // ============================================================================
@@ -2233,6 +2369,16 @@
                 case 'textMessaging':
                     value = 'Yes'; // Default to opting in for text messages
                     break;
+                case 'subscribeNotifications':
+                    // Check the checkbox for job alerts/notifications
+                    if (field.type === 'checkbox') {
+                        field.checked = true;
+                        console.log(`✅ Checked notification subscription`);
+                        continue; // Skip further processing for checkboxes
+                    } else {
+                        value = 'Yes'; // For select/radio inputs
+                    }
+                    break;
                 case 'additionalFiles':
                     // Skip file uploads
                     continue;
@@ -2483,55 +2629,59 @@
         const profileDataEl = document.getElementById('profileData');
         if (!profileDataEl) return;
         
+        // Prepare display values
+        const fullName = USER_PROFILE.fullName || (USER_PROFILE.firstName + ' ' + USER_PROFILE.lastName).trim();
+        const address = USER_PROFILE.address1 || '';
+        const cityState = `${USER_PROFILE.city || ''}, ${USER_PROFILE.state || ''}`.replace(/^,\s*|,\s*$/g, '').trim();
+        const skillsText = (USER_PROFILE.skills && USER_PROFILE.skills.length > 0) ? USER_PROFILE.skills.join(', ') : '';
+        const skillsDisplay = (USER_PROFILE.skills && USER_PROFILE.skills.length > 0) 
+            ? (USER_PROFILE.skills.slice(0, 5).join(', ') + (USER_PROFILE.skills.length > 5 ? '...' : ''))
+            : '';
+        const experienceText = USER_PROFILE.yearsOfExperience ? `${USER_PROFILE.yearsOfExperience} years` : '';
+        
+        // Build HTML for all 10 fields
         let html = `
             <div class="data-row">
                 <span class="data-label">Name:</span>
-                <span class="data-value clickable-data" data-copy="${USER_PROFILE.fullName || USER_PROFILE.firstName + ' ' + USER_PROFILE.lastName}" title="Click to copy">${USER_PROFILE.fullName || USER_PROFILE.firstName + ' ' + USER_PROFILE.lastName}</span>
+                <span class="data-value clickable-data" data-field="fullName" data-copy="${fullName}" title="Click to copy" contenteditable="true">${fullName}</span>
             </div>
             <div class="data-row">
                 <span class="data-label">Email:</span>
-                <span class="data-value clickable-data" data-copy="${USER_PROFILE.email}" title="Click to copy">${USER_PROFILE.email}</span>
+                <span class="data-value clickable-data" data-field="email" data-copy="${USER_PROFILE.email}" title="Click to copy" contenteditable="true">${USER_PROFILE.email}</span>
             </div>
             <div class="data-row">
                 <span class="data-label">Phone:</span>
-                <span class="data-value clickable-data" data-copy="${USER_PROFILE.phone}" title="Click to copy">${USER_PROFILE.phone}</span>
+                <span class="data-value clickable-data" data-field="phone" data-copy="${USER_PROFILE.phone}" title="Click to copy" contenteditable="true">${USER_PROFILE.phone}</span>
             </div>
             <div class="data-row">
-                <span class="data-label">Location:</span>
-                <span class="data-value clickable-data" data-copy="${USER_PROFILE.city}, ${USER_PROFILE.state} ${USER_PROFILE.zipCode}" title="Click to copy">${USER_PROFILE.city}, ${USER_PROFILE.state} ${USER_PROFILE.zipCode}</span>
+                <span class="data-label">Address:</span>
+                <span class="data-value clickable-data" data-field="address1" data-copy="${address}" title="Click to copy" contenteditable="true">${address}</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">City, State:</span>
+                <span class="data-value clickable-data" data-field="cityState" data-copy="${cityState}" title="Click to copy" contenteditable="true">${cityState}</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">LinkedIn:</span>
+                <span class="data-value clickable-data" data-field="linkedInUrl" data-copy="${USER_PROFILE.linkedInUrl}" title="Click to copy" contenteditable="true" style="font-size: 10px; word-break: break-all;">${USER_PROFILE.linkedInUrl}</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Current Job Title:</span>
+                <span class="data-value clickable-data" data-field="currentJobTitle" data-copy="${USER_PROFILE.currentJobTitle}" title="Click to copy" contenteditable="true">${USER_PROFILE.currentJobTitle}</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Current Company:</span>
+                <span class="data-value clickable-data" data-field="currentCompany" data-copy="${USER_PROFILE.currentCompany}" title="Click to copy" contenteditable="true">${USER_PROFILE.currentCompany}</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Years of Experience:</span>
+                <span class="data-value clickable-data" data-field="yearsOfExperience" data-copy="${experienceText}" title="Click to copy" contenteditable="true">${experienceText}</span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Skills:</span>
+                <span class="data-value clickable-data" data-field="skills" data-copy="${skillsText}" title="Click to copy" contenteditable="true">${skillsDisplay || 'No skills listed'}</span>
             </div>
         `;
-        
-        // Add skills if available
-        if (USER_PROFILE.skills && USER_PROFILE.skills.length > 0) {
-            const skillsText = USER_PROFILE.skills.join(', ');
-            html += `
-                <div class="data-row">
-                    <span class="data-label">Skills:</span>
-                    <span class="data-value clickable-data" data-copy="${skillsText}" title="Click to copy">${USER_PROFILE.skills.slice(0, 5).join(', ')}${USER_PROFILE.skills.length > 5 ? '...' : ''}</span>
-                </div>
-            `;
-        }
-        
-        // Add experience if available
-        if (USER_PROFILE.yearsOfExperience > 0) {
-            html += `
-                <div class="data-row">
-                    <span class="data-label">Experience:</span>
-                    <span class="data-value clickable-data" data-copy="${USER_PROFILE.yearsOfExperience} years" title="Click to copy">${USER_PROFILE.yearsOfExperience} years</span>
-                </div>
-            `;
-        }
-        
-        // Add LinkedIn if available
-        if (USER_PROFILE.linkedInUrl) {
-            html += `
-                <div class="data-row">
-                    <span class="data-label">LinkedIn:</span>
-                    <span class="data-value clickable-data" data-copy="${USER_PROFILE.linkedInUrl}" title="Click to copy" style="font-size: 10px; word-break: break-all;">${USER_PROFILE.linkedInUrl}</span>
-                </div>
-            `;
-        }
         
         profileDataEl.innerHTML = html;
         
@@ -2544,7 +2694,13 @@
         const clickableElements = document.querySelectorAll('.clickable-data');
         
         clickableElements.forEach(element => {
-            element.addEventListener('click', async function() {
+            // Click to copy functionality
+            element.addEventListener('click', async function(e) {
+                // Don't copy if user is selecting text for editing
+                if (this.getAttribute('contenteditable') === 'true' && e.detail === 2) {
+                    return; // Let double-click enable editing
+                }
+                
                 const textToCopy = this.getAttribute('data-copy');
                 
                 try {
@@ -2568,6 +2724,49 @@
                         this.innerHTML = textToCopy;
                     }, 1500);
                 }
+            });
+            
+            // Save edited values on blur (when user finishes editing)
+            element.addEventListener('blur', function() {
+                const fieldName = this.getAttribute('data-field');
+                const newValue = this.textContent.trim();
+                
+                if (!fieldName) return;
+                
+                // Update USER_PROFILE with edited value
+                if (fieldName === 'fullName') {
+                    USER_PROFILE.fullName = newValue;
+                    // Try to split into first/last if possible
+                    const parts = newValue.split(' ');
+                    if (parts.length >= 2) {
+                        USER_PROFILE.firstName = parts[0];
+                        USER_PROFILE.lastName = parts.slice(1).join(' ');
+                    }
+                } else if (fieldName === 'cityState') {
+                    // Parse "City, State" format
+                    const parts = newValue.split(',').map(s => s.trim());
+                    if (parts.length >= 2) {
+                        USER_PROFILE.city = parts[0];
+                        USER_PROFILE.state = parts[1];
+                    }
+                } else if (fieldName === 'yearsOfExperience') {
+                    // Extract number from "X years" format
+                    const match = newValue.match(/(\d+)/);
+                    if (match) {
+                        USER_PROFILE.yearsOfExperience = parseInt(match[1]);
+                    }
+                } else if (fieldName === 'skills') {
+                    // Convert comma-separated string to array
+                    USER_PROFILE.skills = newValue.split(',').map(s => s.trim()).filter(s => s);
+                } else {
+                    // Direct field mapping
+                    USER_PROFILE[fieldName] = newValue;
+                }
+                
+                // Update data-copy attribute with new value
+                this.setAttribute('data-copy', newValue);
+                
+                console.log(`Updated ${fieldName}:`, newValue);
             });
         });
     }
